@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strings"
 
 	"golang.org/x/net/publicsuffix"
 
@@ -64,15 +65,24 @@ func (c *Client) Login(username, password string) error {
 	return nil
 }
 
+type QueryOption func(*url.Values)
+
+func WithHashes(hashes []string) QueryOption {
+	return func(v *url.Values) {
+		v.Set("hashes", strings.Join(hashes, "|"))
+	}
+}
+
 // TODO: accept variadc options
-func (c *Client) TorrentList() []torrents.Info {
+func (c *Client) TorrentList(opts ...QueryOption) []torrents.Info {
 	infoApi, err := url.JoinPath(c.BaseUrl, torrentInfo)
 	if err != nil {
 		log.Fatalf("failed to create url: %s", err)
 	}
 	infoUrl, _ := url.Parse(infoApi)
-	params := url.Values{
-		"foo": {"bar"},
+	params := url.Values{}
+	for _, opt := range opts {
+		opt(&params)
 	}
 	infoUrl.RawQuery = params.Encode()
 	info, err := c.HttpClient.Get(infoUrl.String())

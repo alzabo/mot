@@ -17,12 +17,13 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	mot "github.com/alzabo/mot/pkg"
-	"github.com/alzabo/mot/torrents"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -39,6 +40,14 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 1 && args[0] == "-" {
+			input := cmd.InOrStdin()
+			b, err := io.ReadAll(input)
+			if err != nil {
+				log.Fatalf("failed to read from stdin: %s", err)
+			}
+			args = strings.Fields(string(b))
+		}
 		get(args)
 	},
 	// TODO: Validation for Args: for valid hash or none
@@ -51,16 +60,20 @@ func get(args []string) {
 		log.Fatal(err)
 	}
 	w := new(tabwriter.Writer)
-	var torrents []torrents.Info
 	w.Init(os.Stdout, 1, 4, 3, ' ', 0)
-	if len(args) == 0 {
-		torrents = c.TorrentList()
+
+	opts := []mot.QueryOption{}
+	if len(args) > 0 {
+		opts = append(opts, mot.WithHashes(args))
 	}
+
+	torrents := c.TorrentList(opts...)
+
 	if len(torrents) == 0 {
-		fmt.Println("No torrents found.")
+		fmt.Fprintln(w, "No torrents found.")
 		return
 	}
-	fmt.Fprint(w, "HASH\tSTATE\tNAME")
+	fmt.Fprint(w, "HASH\tSTATE\tNAME\n")
 	for _, t := range torrents {
 		fmt.Fprintf(w, "%s\t%s\t%s\n", t.Hash, t.State, t.Name)
 	}
