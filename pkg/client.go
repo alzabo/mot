@@ -24,25 +24,26 @@ type Client struct {
 	BaseUrl    string
 }
 
-func NewClient(url string, username string, password string) Client {
-	client := Client{}
-	client.BaseUrl = url
+func NewClient(url string, username string, password string) (Client, error) {
+	var err error
+	client := Client{BaseUrl: url}
+
 	// All users of cookiejar should import "golang.org/x/net/publicsuffix"
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
-		log.Fatal(err)
+		return client, fmt.Errorf("failed to initialize cookiejar: %s", err)
 	}
 	client.HttpClient = http.Client{
 		Jar: jar,
 	}
-	client.Login(username, password)
-	return client
+	err = client.Login(username, password)
+	return client, err
 }
 
-func (c *Client) Login(username, password string) {
+func (c *Client) Login(username, password string) error {
 	loginUrl, err := url.JoinPath(c.BaseUrl, login)
 	if err != nil {
-		log.Fatalf("failed to create login URL: %s", err)
+		return fmt.Errorf("failed to create login URL: %s", err)
 	}
 	params := url.Values{
 		"username": {username},
@@ -50,18 +51,20 @@ func (c *Client) Login(username, password string) {
 	}
 	resp, err := c.HttpClient.PostForm(loginUrl, params)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("login request failed: %s", err)
 	}
 	defer resp.Body.Close()
 	r, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println(err)
+		return fmt.Errorf("encountered error reading login response: %s", err)
 	}
 	if string(r) != "Ok." {
-		log.Fatalf("failed to log in with message: %s", r)
+		return fmt.Errorf("failed to log in with message: %s", r)
 	}
+	return nil
 }
 
+// TODO: accept variadc options
 func (c *Client) TorrentList() []torrents.Info {
 	infoApi, err := url.JoinPath(c.BaseUrl, torrentInfo)
 	if err != nil {
