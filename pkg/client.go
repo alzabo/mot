@@ -95,7 +95,7 @@ func (c *Client) TorrentList(opts ...QueryOption) []torrents.Info {
 	if err != nil {
 		log.Fatalf("failed to read body: %s", err)
 	}
-	items := []torrents.Info{}
+	items := make([]torrents.Info, 30)
 	if err := json.Unmarshal(body, &items); err != nil {
 		log.Fatalf("failed to unmarshal torrent info: %s", err)
 	}
