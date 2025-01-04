@@ -130,3 +130,20 @@ func (c *Client) Files(hash string) torrent.Files {
 	}
 	return items
 }
+
+// TODO: The API for these is inconsistent. Other methods panic, this returns error
+func (c *Client) Recheck(opts ...QueryOption) error {
+	p, _ := url.JoinPath(c.BaseUrl, "api/v2/torrents/recheck")
+	u, _ := url.Parse(p)
+	params := url.Values{}
+	for _, opt := range opts {
+		opt(&params)
+	}
+	req, err := c.HttpClient.PostForm(u.String(), params)
+	if err != nil {
+		return fmt.Errorf("failed to recheck with url %s: %s", u, err)
+	}
+	defer req.Body.Close()
+
+	return nil
+}
