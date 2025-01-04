@@ -48,12 +48,24 @@ to quickly create a Cobra application.`,
 			}
 			args = strings.Fields(string(b))
 		}
-		get(args)
+
+		opts := []mot.QueryOption{}
+		if len(args) > 0 {
+			opts = append(opts, mot.WithHashes(args))
+		}
+
+		for _, flag := range []string{"category", "tag"} {
+			if cmd.Flags().Changed(flag) {
+				opts = append(opts, mot.WithValue(flag, cmd.Flag(flag).Value.String()))
+			}
+		}
+
+		get(opts)
 	},
 	// TODO: Validation for Args: for valid hash or none
 }
 
-func get(args []string) {
+func get(opts []mot.QueryOption) {
 	// TODO: Move client init into root?
 	c, err := mot.NewClient(viper.GetString("url"), viper.GetString("username"), viper.GetString("password"))
 	if err != nil {
@@ -62,18 +74,16 @@ func get(args []string) {
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 1, 4, 3, ' ', 0)
 
-	opts := []mot.QueryOption{}
-	if len(args) > 0 {
-		opts = append(opts, mot.WithHashes(args))
-	}
-
 	torrents := c.TorrentList(opts...)
 
 	if len(torrents) == 0 {
 		fmt.Fprintln(w, "No torrents found.")
 		return
 	}
-	fmt.Fprint(w, "HASH\tSTATE\tNAME\n")
+
+	if !noHeaders {
+		fmt.Fprint(w, "HASH\tSTATE\tNAME\n")
+	}
 	for _, t := range torrents {
 		fmt.Fprintf(w, "%s\t%s\t%s\n", t.Hash, t.State, t.Name)
 	}
@@ -92,5 +102,6 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	//torrentCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	torrentCmd.Flags().String("category", "", "Select torrents with the given category")
+	torrentCmd.Flags().String("tag", "", "Select torrents with the given tag")
 }

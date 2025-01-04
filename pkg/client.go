@@ -73,6 +73,12 @@ func WithHashes(hashes []string) QueryOption {
 	}
 }
 
+func WithValue(key, val string) QueryOption {
+	return func(v *url.Values) {
+		v.Set(key, val)
+	}
+}
+
 // TODO: accept variadc options
 func (c *Client) TorrentList(opts ...QueryOption) []torrents.Info {
 	infoApi, err := url.JoinPath(c.BaseUrl, torrentInfo)

@@ -21,6 +21,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var noHeaders bool
+
 // getCmd represents the get command
 var getCmd = &cobra.Command{
 	Use:   "get",
@@ -43,7 +45,7 @@ func init() {
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// getCmd.PersistentFlags().String("foo", "", "A help for foo")
+	getCmd.PersistentFlags().BoolVar(&noHeaders, "no-headers", false, "When using default or columnar output, don't print headers")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
