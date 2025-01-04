@@ -28,7 +28,7 @@ import (
 
 // filesCmd represents the files command
 var filesCmd = &cobra.Command{
-	Use:     "files",
+	Use:     "files hash...",
 	Aliases: []string{"file"},
 	Short:   "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples

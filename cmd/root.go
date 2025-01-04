@@ -68,6 +68,12 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.AddGroup(
+		&cobra.Group{ID: "torrent", Title: "Torrent Management Commands"},
+		&cobra.Group{ID: "other", Title: "Other Commands"},
+	)
+	rootCmd.SetCompletionCommandGroupID("other")
+	rootCmd.SetHelpCommandGroupID("other")
 }
 
 // initConfig reads in config file and ENV variables if set.

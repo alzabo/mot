@@ -27,9 +27,10 @@ import (
 
 // recheckCmd represents the recheck command
 var recheckCmd = &cobra.Command{
-	Use:     "recheck",
+	Use:     "recheck hash...",
 	Aliases: []string{"check"},
-	Short:   "A brief description of your command",
+	GroupID: "torrent",
+	Short:   "Recheck torrent contents",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
