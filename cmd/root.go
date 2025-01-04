@@ -19,13 +19,11 @@ import (
 	"fmt"
 	"os"
 
-	mot "github.com/alzabo/mot/pkg"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var cfgFile string
-var client mot.Client
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{

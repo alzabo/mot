@@ -25,7 +25,6 @@ import (
 
 	mot "github.com/alzabo/mot/pkg"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // torrentCmd represents the torrent command
@@ -66,11 +65,7 @@ to quickly create a Cobra application.`,
 }
 
 func get(opts []mot.QueryOption) {
-	// TODO: Move client init into root?
-	c, err := mot.NewClient(viper.GetString("url"), viper.GetString("username"), viper.GetString("password"))
-	if err != nil {
-		log.Fatal(err)
-	}
+	c := newClient()
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 1, 4, 3, ' ', 0)
 
