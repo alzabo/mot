@@ -1,5 +1,5 @@
 // DO NOT EDIT
-package torrents
+package torrent
 
 type Info struct {
 	AddedOn                  int64   `json:"added_on"`

@@ -1,5 +1,5 @@
 // DO NOT EDIT
-package torrents
+package torrent
 
 type Trackers []struct {
 	Msg           string `json:"msg"`

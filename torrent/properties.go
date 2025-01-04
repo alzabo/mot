@@ -1,5 +1,5 @@
 // DO NOT EDIT
-package torrents
+package torrent
 
 type Properties struct {
 	AdditionDate           int64   `json:"addition_date"`

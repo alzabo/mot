@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/alzabo/mot/torrents"
+	"github.com/alzabo/mot/torrent"
 )
 
 const (
@@ -79,8 +79,7 @@ func WithValue(key, val string) QueryOption {
 	}
 }
 
-// TODO: accept variadc options
-func (c *Client) TorrentList(opts ...QueryOption) []torrents.Info {
+func (c *Client) TorrentList(opts ...QueryOption) []torrent.Info {
 	infoApi, err := url.JoinPath(c.BaseUrl, torrentInfo)
 	if err != nil {
 		log.Fatalf("failed to create url: %s", err)
@@ -101,9 +100,33 @@ func (c *Client) TorrentList(opts ...QueryOption) []torrents.Info {
 	if err != nil {
 		log.Fatalf("failed to read body: %s", err)
 	}
-	items := make([]torrents.Info, 30)
+	items := make([]torrent.Info, 30)
 	if err := json.Unmarshal(body, &items); err != nil {
 		log.Fatalf("failed to unmarshal torrent info: %s", err)
+	}
+	return items
+}
+
+func (c *Client) Files(hash string) torrent.Files {
+	p, err := url.JoinPath(c.BaseUrl, "api/v2/torrents/files")
+	if err != nil {
+		log.Fatalf("failed to create url: %s", err)
+	}
+	u, _ := url.Parse(p)
+	u.RawQuery = url.Values{"hash": {hash}}.Encode()
+	g, err := c.HttpClient.Get(u.String())
+	if err != nil {
+		log.Fatalf("failed to get files for hash %s: %s", hash, err)
+	}
+	defer g.Body.Close()
+
+	body, err := io.ReadAll(g.Body)
+	if err != nil {
+		log.Fatalf("failed to read body: %s", err)
+	}
+	var items torrent.Files
+	if err := json.Unmarshal(body, &items); err != nil {
+		log.Fatalf("failed to unmarshal file info: %s", err)
 	}
 	return items
 }
