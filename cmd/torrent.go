@@ -101,10 +101,10 @@ func get(opts []mot.QueryOption) {
 	}
 
 	if !noHeaders {
-		fmt.Fprint(w, "HASH\tSTATE\tNAME\n")
+		fmt.Fprint(w, "HASH\tSTATE\tPROGRESS\tNAME\n")
 	}
 	for _, t := range torrents {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", t.Hash, t.State, t.Name)
+		fmt.Fprintf(w, "%s\t%s\t%.2f%%\t%s\n", t.Hash, t.State, t.Progress*100, t.Name)
 	}
 	w.Flush()
 	_ = c
