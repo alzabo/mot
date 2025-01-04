@@ -20,12 +20,28 @@ import (
 	"io"
 	"log"
 	"os"
+	"slices"
 	"strings"
 	"text/tabwriter"
 
 	mot "github.com/alzabo/mot/pkg"
 	"github.com/spf13/cobra"
 )
+
+var torrentStateFilters = []string{
+	"all",
+	"downloading",
+	"seeding",
+	"completed",
+	"paused",
+	"active",
+	"inactive",
+	"resumed",
+	"stalled",
+	"stalled_uploading",
+	"stalled_downloading",
+	"errored",
+}
 
 // torrentCmd represents the torrent command
 var torrentCmd = &cobra.Command{
@@ -53,10 +69,19 @@ to quickly create a Cobra application.`,
 			opts = append(opts, mot.WithHashes(args))
 		}
 
-		for _, flag := range []string{"category", "tag"} {
-			if cmd.Flags().Changed(flag) {
-				opts = append(opts, mot.WithValue(flag, cmd.Flag(flag).Value.String()))
+		if cmd.Flags().Changed("category") {
+			opts = append(opts, mot.WithValue("category", cmd.Flag("category").Value.String()))
+		}
+		if cmd.Flags().Changed("tag") {
+			opts = append(opts, mot.WithValue("tag", cmd.Flag("tag").Value.String()))
+		}
+		if cmd.Flags().Changed("state") {
+			state := cmd.Flag("state").Value.String()
+			// TODO: More uniform validation
+			if !slices.Contains(torrentStateFilters, state) {
+				log.Fatalf("invalid torrent state filter provided: %s", state)
 			}
+			opts = append(opts, mot.WithValue("filter", state))
 		}
 
 		get(opts)
@@ -99,4 +124,5 @@ func init() {
 	// is called directly, e.g.:
 	torrentCmd.Flags().String("category", "", "Select torrents with the given category")
 	torrentCmd.Flags().String("tag", "", "Select torrents with the given tag")
+	torrentCmd.Flags().String("state", "", "Select torrents in one of the states: "+strings.Join(torrentStateFilters, ", "))
 }
