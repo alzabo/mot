@@ -77,7 +77,6 @@ to quickly create a Cobra application.`,
 		}
 		if cmd.Flags().Changed("state") {
 			state := cmd.Flag("state").Value.String()
-			// TODO: More uniform validation
 			if !slices.Contains(torrentStateFilters, state) {
 				log.Fatalf("invalid torrent state filter provided: %s", state)
 			}
