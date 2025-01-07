@@ -17,12 +17,15 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
 var noHeaders bool
 var watch bool
+
+const watchSleep time.Duration = 1000
 
 // getCmd represents the get command
 var getCmd = &cobra.Command{

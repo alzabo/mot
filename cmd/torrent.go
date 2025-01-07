@@ -23,6 +23,7 @@ import (
 	"slices"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	mot "github.com/alzabo/mot/pkg"
 	"github.com/spf13/cobra"
@@ -90,24 +91,39 @@ to quickly create a Cobra application.`,
 
 func get(opts []mot.QueryOption) {
 	c := newClient()
+
+	// TODO: This map can grow unbounded. Chances are it doesn't matter much in
+	// practice, but interning the strings would allow the garbage collector to
+	// reclaim memory. https://go.dev/blog/unique
+	out := map[string]struct{}{}
+
 	w := new(tabwriter.Writer)
 	w.Init(os.Stdout, 1, 4, 3, ' ', 0)
 
-	torrents := c.TorrentList(opts...)
-
-	if len(torrents) == 0 {
-		fmt.Fprintln(w, "No torrents found.")
-		return
-	}
-
 	if !noHeaders {
+		// TODO: Print headers again every N lines when watching?
 		fmt.Fprint(w, "HASH\tSTATE\tPROGRESS\tNAME\n")
 	}
-	for _, t := range torrents {
-		fmt.Fprintf(w, "%s\t%s\t%.2f%%\t%s\n", t.Hash, t.State, t.Progress*100, t.Name)
+
+	for {
+		torrents := c.TorrentList(opts...)
+		for _, t := range torrents {
+			ln := fmt.Sprintf("%s\t%s\t%6.2f%%\t%s\n", t.Hash, t.State, t.Progress*100, t.Name)
+			if _, ok := out[ln]; !ok {
+				out[ln] = struct{}{}
+				fmt.Fprint(w, ln)
+			}
+		}
+		w.Flush()
+
+		if !watch {
+			if len(torrents) == 0 {
+				fmt.Fprintln(w, "No torrents found.")
+			}
+			return
+		}
+		time.Sleep(watchSleep)
 	}
-	w.Flush()
-	_ = c
 }
 
 func init() {

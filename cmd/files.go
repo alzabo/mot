@@ -22,6 +22,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -52,19 +53,33 @@ to quickly create a Cobra application.`,
 			return
 		}
 
-		c := newClient()
-
 		w := new(tabwriter.Writer)
 		w.Init(os.Stdout, 1, 4, 3, ' ', 0)
 		if !noHeaders {
 			fmt.Fprint(w, "HASH\tSIZE\tPROGRESS\tNAME\n")
 		}
-		for _, h := range args {
-			for _, f := range c.Files(h) {
-				fmt.Fprintf(w, "%s\t%d\t%.02f%%\t%s\n", h, f.Size, f.Progress*100, f.Name)
+
+		out := map[string]struct{}{}
+
+		c := newClient()
+
+		for {
+			for _, h := range args {
+				for _, f := range c.Files(h) {
+					ln := fmt.Sprintf("%s\t%d\t%6.02f%%\t%s\n", h, f.Size, f.Progress*100, f.Name)
+					if _, ok := out[ln]; ok {
+						continue
+					}
+					out[ln] = struct{}{}
+					fmt.Fprint(w, ln)
+				}
 			}
+			w.Flush()
+			if !watch {
+				return
+			}
+			time.Sleep(watchSleep)
 		}
-		w.Flush()
 	},
 }
 
