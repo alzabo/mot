@@ -108,19 +108,21 @@ func get(opts []mot.QueryOption) {
 	for {
 		torrents := c.TorrentList(opts...)
 		for _, t := range torrents {
+			// TODO: When states change, the width of lines may also
 			ln := fmt.Sprintf("%s\t%s\t%6.2f%%\t%s\n", t.Hash, t.State, t.Progress*100, t.Name)
 			if _, ok := out[ln]; !ok {
 				out[ln] = struct{}{}
 				fmt.Fprint(w, ln)
 			}
 		}
+
 		w.Flush()
 
 		if !watch {
 			if len(torrents) == 0 {
 				fmt.Fprintln(w, "No torrents found.")
 			}
-			return
+			break
 		}
 		time.Sleep(watchSleep)
 	}
