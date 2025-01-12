@@ -22,8 +22,9 @@ import (
 
 // resumeCmd represents the resume command
 var resumeCmd = &cobra.Command{
-	Use:   "resume",
-	Short: "A brief description of your command",
+	Use:     "resume",
+	Aliases: []string{"unpause", "start"},
+	Short:   "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
