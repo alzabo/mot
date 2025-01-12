@@ -17,7 +17,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"slices"
@@ -56,14 +55,7 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 1 && args[0] == "-" {
-			input := cmd.InOrStdin()
-			b, err := io.ReadAll(input)
-			if err != nil {
-				log.Fatalf("failed to read from stdin: %s", err)
-			}
-			args = strings.Fields(string(b))
-		}
+		args = parseArgs(cmd, args)
 
 		opts := []mot.QueryOption{}
 		if len(args) > 0 {
@@ -84,48 +76,44 @@ to quickly create a Cobra application.`,
 			opts = append(opts, mot.WithValue("filter", state))
 		}
 
-		get(opts)
+		c := newClient()
+
+		// TODO: This map can grow unbounded. Chances are it doesn't matter much in
+		// practice, but interning the strings would allow the garbage collector to
+		// reclaim memory. https://go.dev/blog/unique
+		out := map[string]struct{}{}
+
+		w := new(tabwriter.Writer)
+		w.Init(os.Stdout, 1, 4, 3, ' ', 0)
+
+		if !noHeaders {
+			// TODO: Print headers again every N lines when watching?
+			fmt.Fprint(w, "HASH\tSTATE\tPROGRESS\tNAME\n")
+		}
+
+		for {
+			torrents := c.TorrentList(opts...)
+			for _, t := range torrents {
+				// TODO: When states change, the width of lines may also
+				ln := fmt.Sprintf("%s\t%s\t%6.2f%%\t%s\n", t.Hash, t.State, t.Progress*100, t.Name)
+				if _, ok := out[ln]; !ok {
+					out[ln] = struct{}{}
+					fmt.Fprint(w, ln)
+				}
+			}
+
+			w.Flush()
+
+			if !watch {
+				if len(torrents) == 0 {
+					fmt.Fprintln(w, "No torrents found.")
+				}
+				break
+			}
+			time.Sleep(watchSleep)
+		}
 	},
 	// TODO: Validation for Args: for valid hash or none
-}
-
-func get(opts []mot.QueryOption) {
-	c := newClient()
-
-	// TODO: This map can grow unbounded. Chances are it doesn't matter much in
-	// practice, but interning the strings would allow the garbage collector to
-	// reclaim memory. https://go.dev/blog/unique
-	out := map[string]struct{}{}
-
-	w := new(tabwriter.Writer)
-	w.Init(os.Stdout, 1, 4, 3, ' ', 0)
-
-	if !noHeaders {
-		// TODO: Print headers again every N lines when watching?
-		fmt.Fprint(w, "HASH\tSTATE\tPROGRESS\tNAME\n")
-	}
-
-	for {
-		torrents := c.TorrentList(opts...)
-		for _, t := range torrents {
-			// TODO: When states change, the width of lines may also
-			ln := fmt.Sprintf("%s\t%s\t%6.2f%%\t%s\n", t.Hash, t.State, t.Progress*100, t.Name)
-			if _, ok := out[ln]; !ok {
-				out[ln] = struct{}{}
-				fmt.Fprint(w, ln)
-			}
-		}
-
-		w.Flush()
-
-		if !watch {
-			if len(torrents) == 0 {
-				fmt.Fprintln(w, "No torrents found.")
-			}
-			break
-		}
-		time.Sleep(watchSleep)
-	}
 }
 
 func init() {
