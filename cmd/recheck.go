@@ -52,6 +52,9 @@ to quickly create a Cobra application.`,
 		}
 
 		c := newClient()
+
+		// TODO: watch option to exec get torrents command after starting recheck
+		// should implement watch until... progress == 100% for hashes.
 		return c.Recheck(mot.WithHashes(args))
 	},
 }

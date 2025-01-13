@@ -25,6 +25,7 @@ import (
 	"time"
 
 	mot "github.com/alzabo/mot/pkg"
+	"github.com/alzabo/mot/torrent"
 	"github.com/spf13/cobra"
 )
 
@@ -54,7 +55,7 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		args = parseArgs(cmd, args)
 
 		opts := []mot.QueryOption{}
@@ -76,6 +77,11 @@ to quickly create a Cobra application.`,
 			opts = append(opts, mot.WithValue("filter", state))
 		}
 
+		columns, err := cmd.Flags().GetStringSlice("columns")
+		if err != nil {
+			return err
+		}
+
 		c := newClient()
 
 		// TODO: This map can grow unbounded. Chances are it doesn't matter much in
@@ -88,14 +94,23 @@ to quickly create a Cobra application.`,
 
 		if !noHeaders {
 			// TODO: Print headers again every N lines when watching?
-			fmt.Fprint(w, "HASH\tSTATE\tPROGRESS\tNAME\n")
+			headers := make([]string, len(columns))
+			for i, key := range columns {
+				headers[i] = strings.ToUpper(key)
+			}
+			fmt.Fprint(w, strings.Join(headers, "\t")+"\n")
 		}
 
 		for {
-			torrents := c.TorrentList(opts...)
+			torrents := c.Torrents(opts...)
 			for _, t := range torrents {
 				// TODO: When states change, the width of lines may also
-				ln := fmt.Sprintf("%s\t%s\t%6.2f%%\t%s\n", t.Hash, t.State, t.Progress*100, t.Name)
+				fields := make([]string, len(columns))
+				for i, key := range columns {
+					fields[i] = t.Get(key).String()
+				}
+
+				ln := strings.Join(fields, "\t") + "\n"
 				if _, ok := out[ln]; !ok {
 					out[ln] = struct{}{}
 					fmt.Fprint(w, ln)
@@ -112,6 +127,7 @@ to quickly create a Cobra application.`,
 			}
 			time.Sleep(watchSleep)
 		}
+		return nil
 	},
 	// TODO: Validation for Args: for valid hash or none
 }
@@ -130,4 +146,7 @@ func init() {
 	torrentCmd.Flags().String("category", "", "Select torrents with the given category")
 	torrentCmd.Flags().String("tag", "", "Select torrents with the given tag")
 	torrentCmd.Flags().String("state", "", "Select torrents in one of the states: "+strings.Join(torrentStateFilters, ", "))
+
+	// TODO: validate existence of columns. Passing an invalid key results in a nil pointer panic
+	torrentCmd.Flags().StringSliceP("columns", "c", []string{"hash", "state", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Info{}.Values().Keys(), ", "))
 }

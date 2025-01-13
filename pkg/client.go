@@ -80,7 +80,7 @@ func WithValue(key, val string) QueryOption {
 	}
 }
 
-func (c *Client) TorrentList(opts ...QueryOption) []torrent.Info {
+func (c *Client) Torrents(opts ...QueryOption) []torrent.Values {
 	infoApi, err := url.JoinPath(c.BaseUrl, torrentInfo)
 	if err != nil {
 		log.Fatalf("failed to create url: %s", err)
@@ -105,7 +105,11 @@ func (c *Client) TorrentList(opts ...QueryOption) []torrent.Info {
 	if err := json.Unmarshal(body, &items); err != nil {
 		log.Fatalf("failed to unmarshal torrent info: %s", err)
 	}
-	return items
+	values := make([]torrent.Values, len(items))
+	for i, item := range items {
+		values[i] = item.Values()
+	}
+	return values
 }
 
 func (c *Client) Files(hash string) torrent.Files {
