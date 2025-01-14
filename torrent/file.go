@@ -1,7 +1,7 @@
 // DO NOT EDIT
 package torrent
 
-type Files []struct {
+type File struct {
 	Availability float64 `json:"availability"`
 	Index        int64   `json:"index"`
 	IsSeed       bool    `json:"is_seed"`

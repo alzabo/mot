@@ -16,6 +16,7 @@ limitations under the License.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -24,6 +25,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/alzabo/mot/torrent"
 	"github.com/spf13/cobra"
 )
 
@@ -38,7 +40,7 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 1 && args[0] == "-" {
 			input := cmd.InOrStdin()
 			b, err := io.ReadAll(input)
@@ -49,14 +51,22 @@ to quickly create a Cobra application.`,
 		}
 
 		if len(args) == 0 {
-			fmt.Println("Specify torrent hashes as args or pipe to stdin")
-			return
+			return errors.New("specify torrent hashes as args or pipe to stdin")
+		}
+
+		columns, err := cmd.Flags().GetStringSlice("columns")
+		if err != nil {
+			return err
 		}
 
 		w := new(tabwriter.Writer)
 		w.Init(os.Stdout, 1, 4, 3, ' ', 0)
 		if !noHeaders {
-			fmt.Fprint(w, "HASH\tSIZE\tPROGRESS\tNAME\n")
+			headers := make([]string, len(columns))
+			for i, key := range columns {
+				headers[i] = strings.ToUpper(key)
+			}
+			fmt.Fprint(w, strings.Join(headers, "\t")+"\n")
 		}
 
 		out := map[string]struct{}{}
@@ -66,7 +76,12 @@ to quickly create a Cobra application.`,
 		for {
 			for _, h := range args {
 				for _, f := range c.Files(h) {
-					ln := fmt.Sprintf("%s\t%d\t%6.02f%%\t%s\n", h, f.Size, f.Progress*100, f.Name)
+					fields := make([]string, len(columns))
+					for i, key := range columns {
+						fields[i] = f.Get(key).String()
+					}
+
+					ln := strings.Join(fields, "\t") + "\n"
 					if _, ok := out[ln]; ok {
 						continue
 					}
@@ -76,7 +91,7 @@ to quickly create a Cobra application.`,
 			}
 			w.Flush()
 			if !watch {
-				return
+				return nil
 			}
 			time.Sleep(watchSleep)
 		}
@@ -95,4 +110,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// filesCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	// TODO: validate existence of columns. Passing an invalid key results in a nil pointer panic
+	filesCmd.Flags().StringSliceP("columns", "c", []string{"hash", "size", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.File{}.Values(map[string]string{"hash": ""}).Keys(), ", "))
 }

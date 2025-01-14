@@ -100,15 +100,62 @@ func (i Info) Values() Values {
 	return InfoValues{
 		info: i,
 		stringValues: map[string]Value{
-			"name":      stringValue{i.Name},
-			"hash":      stringValue{i.Hash},
-			"state":     stringValue{i.State},
-			"progress":  percentValue{i.Progress},
-			"size":      bytesValue{i.Size},
-			"tags":      stringValue{i.Tags},
-			"category":  stringValue{i.Category},
-			"downspeed": rateValue{i.Dlspeed},
-			"upspeed":   rateValue{i.Upspeed},
+			"name":       stringValue{i.Name},
+			"hash":       stringValue{i.Hash},
+			"state":      stringValue{i.State},
+			"progress":   percentValue{i.Progress},
+			"size":       bytesValue{i.Size},
+			"size_raw":   stringValue{fmt.Sprintf("%d", i.Size)},
+			"tags":       stringValue{i.Tags},
+			"category":   stringValue{i.Category},
+			"speed_down": rateValue{i.Dlspeed},
+			"speed_up":   rateValue{i.Upspeed},
+			"tracker":    stringValue{i.Tracker},
+			// dateadded
+			// datelastactive
+			// downloaded
+			// ratio
+			// uploaded
+			// downloaded
 		},
 	}
+}
+
+type valueWrapper struct {
+	item         any
+	stringValues map[string]Value
+}
+
+func (v valueWrapper) Get(s string) Value {
+	val, ok := v.stringValues[s]
+	if !ok {
+		return nil
+	}
+	return val
+}
+
+func (v valueWrapper) Keys() []string {
+	keys := []string{}
+	for k := range v.stringValues {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	return keys
+}
+
+func (f File) Values(vals map[string]string) Values {
+	w := valueWrapper{
+		item: f,
+		stringValues: map[string]Value{
+			"name":     stringValue{f.Name},
+			"size":     bytesValue{f.Size},
+			"size_raw": stringValue{fmt.Sprintf("%d", f.Size)},
+			"progress": percentValue{f.Progress},
+			"index":    stringValue{fmt.Sprintf("%d", f.Index)},
+		},
+	}
+	for k, v := range vals {
+		w.stringValues[k] = stringValue{v}
+	}
+	return w
 }
