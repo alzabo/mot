@@ -98,7 +98,7 @@ to quickly create a Cobra application.`,
 			for i, key := range columns {
 				headers[i] = strings.ToUpper(key)
 			}
-			fmt.Fprint(w, strings.Join(headers, "\t")+"\n")
+			fmt.Fprint(w, strings.Join(headers, "\t")+"\t\n")
 		}
 
 		for {
@@ -110,7 +110,7 @@ to quickly create a Cobra application.`,
 					fields[i] = t.Get(key).String()
 				}
 
-				ln := strings.Join(fields, "\t") + "\n"
+				ln := strings.Join(fields, "\t") + "\t\n"
 				if _, ok := out[ln]; !ok {
 					out[ln] = struct{}{}
 					fmt.Fprint(w, ln)
