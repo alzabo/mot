@@ -84,6 +84,15 @@ to quickly create a Cobra application.`,
 			return err
 		}
 
+		rawFilters, err := cmd.Flags().GetStringArray("filter")
+		if err != nil {
+			return fmt.Errorf("failed to parse command line filters: %s", err)
+		}
+		filters, err := parseFilters(rawFilters)
+		if err != nil {
+			return fmt.Errorf("encountered error while parsing filters: %s", err)
+		}
+
 		c := newClient()
 
 		// TODO: This map can grow unbounded. Chances are it doesn't matter much in
@@ -105,7 +114,17 @@ to quickly create a Cobra application.`,
 
 		for {
 			torrents := c.Torrents(opts...)
+		torrents:
 			for _, t := range torrents {
+				for _, f := range filters {
+					match, err := f(t)
+					if err != nil {
+						return err
+					}
+					if !match {
+						continue torrents
+					}
+				}
 				// TODO: When states change, the width of lines may also
 				fields := make([]string, len(columns))
 				for i, key := range columns {
@@ -151,4 +170,10 @@ func init() {
 
 	// TODO: validate existence of columns. Passing an invalid key results in a nil pointer panic
 	torrentCmd.Flags().StringSliceP("columns", "c", []string{"hash", "state", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Info{}.Values().Keys(), ", "))
+	torrentCmd.Flags().StringArray("filter", nil, "Filters to apply to the torrent list")
+	// -o hash; print the hash only
+	// -o wide
+	// -o activity?
+	// -o columns=
+	// output field separator
 }
