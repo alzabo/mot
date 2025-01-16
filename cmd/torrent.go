@@ -17,7 +17,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"slices"
 	"strings"
@@ -56,7 +55,10 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		args = parseArgs(cmd, args)
+		args, err := parseArgs(cmd, args)
+		if err != nil {
+			return fmt.Errorf("failed to parse args: %s", err)
+		}
 
 		opts := []mot.QueryOption{}
 		if len(args) > 0 {
@@ -72,7 +74,7 @@ to quickly create a Cobra application.`,
 		if cmd.Flags().Changed("state") {
 			state := cmd.Flag("state").Value.String()
 			if !slices.Contains(torrentStateFilters, state) {
-				log.Fatalf("invalid torrent state filter provided: %s", state)
+				return fmt.Errorf("invalid torrent state filter provided: %s", state)
 			}
 			opts = append(opts, mot.WithValue("filter", state))
 		}

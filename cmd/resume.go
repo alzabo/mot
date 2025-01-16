@@ -16,6 +16,8 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
+
 	mot "github.com/alzabo/mot/pkg"
 	"github.com/spf13/cobra"
 )
@@ -32,7 +34,10 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		args = parseArgs(cmd, args)
+		args, err := parseArgs(cmd, args)
+		if err != nil {
+			return fmt.Errorf("failed to parse args: %s", err)
+		}
 
 		c := newClient()
 		return c.Resume(mot.WithHashes(args))
