@@ -83,6 +83,10 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			return err
 		}
+		if cmd.Flag("output").Value.String() == "hash" {
+			columns = []string{"hash"}
+			noHeaders = true
+		}
 
 		rawFilters, err := cmd.Flags().GetStringArray("filter")
 		if err != nil {
@@ -171,6 +175,8 @@ func init() {
 	// TODO: validate existence of columns. Passing an invalid key results in a nil pointer panic
 	torrentCmd.Flags().StringSliceP("columns", "c", []string{"hash", "state", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Info{}.Values().Keys(), ", "))
 	torrentCmd.Flags().StringArray("filter", nil, "Filters to apply to the torrent list")
+
+	torrentCmd.Flags().StringP("output", "o", "table", "Output format.")
 	// -o hash; print the hash only
 	// -o wide
 	// -o activity?
