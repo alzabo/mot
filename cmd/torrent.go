@@ -46,7 +46,7 @@ var torrentStateFilters = []string{
 // torrentCmd represents the torrent command
 var torrentCmd = &cobra.Command{
 	Use:     "torrent [hash...]",
-	Aliases: []string{"torrents"},
+	Aliases: []string{"torrents", "tor", "to"},
 	Short:   "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
