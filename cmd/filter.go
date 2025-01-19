@@ -32,28 +32,28 @@ func parseFilter(expr string) (Filter, error) {
 			return value.String() == substr, nil
 		}, nil
 	} else if strings.Contains(expr, "!~") {
-		key, substr, _ := strings.Cut(expr, "!~")
+		k, e, _ := strings.Cut(expr, "!~")
+		r, err := regexp.Compile(e)
+		if err != nil {
+			return nil, err
+		}
 		return func(v torrent.Values) (bool, error) {
-			value := v.Get(key)
+			value := v.Get(k)
 			if value == nil {
-				return false, fmt.Errorf("key %v not found in %v", key, v)
-			}
-			r, err := regexp.Compile(substr)
-			if err != nil {
-				return false, err
+				return false, fmt.Errorf("key %v not found in %v", k, v)
 			}
 			return !r.MatchString(value.String()), nil
 		}, nil
 	} else if strings.Contains(expr, "~") {
-		key, substr, _ := strings.Cut(expr, "~")
+		k, e, _ := strings.Cut(expr, "~")
+		r, err := regexp.Compile(e)
+		if err != nil {
+			return nil, err
+		}
 		return func(v torrent.Values) (bool, error) {
-			value := v.Get(key)
+			value := v.Get(k)
 			if value == nil {
-				return false, fmt.Errorf("key %v not found in %v", key, v)
-			}
-			r, err := regexp.Compile(substr)
-			if err != nil {
-				return false, err
+				return false, fmt.Errorf("key %v not found in %v", k, v)
 			}
 			return r.MatchString(value.String()), nil
 		}, nil
