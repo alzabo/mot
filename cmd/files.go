@@ -18,8 +18,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -41,15 +39,10 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 1 && args[0] == "-" {
-			input := cmd.InOrStdin()
-			b, err := io.ReadAll(input)
-			if err != nil {
-				log.Fatalf("failed to read from stdin: %s", err)
-			}
-			args = strings.Fields(string(b))
+		args, err := parseArgs(cmd, args)
+		if err != nil {
+			return fmt.Errorf("failed to parse args: %s", err)
 		}
-
 		if len(args) == 0 {
 			return errors.New("specify torrent hashes as args or pipe to stdin")
 		}
