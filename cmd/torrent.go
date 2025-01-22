@@ -121,7 +121,7 @@ to quickly create a Cobra application.`,
 
 		for {
 			torrents := c.Torrents(opts...)
-		torrents:
+		torrent:
 			for _, t := range torrents {
 				for _, f := range filters {
 					match, err := f(t)
@@ -129,7 +129,7 @@ to quickly create a Cobra application.`,
 						return err
 					}
 					if !match {
-						continue torrents
+						continue torrent
 					}
 				}
 				// TODO: When states change, the width of lines may also
