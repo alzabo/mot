@@ -132,8 +132,8 @@ func (i Info) Values() Values {
 				value:   i.Progress,
 				strFunc: fmtPercent,
 			},
-			// dateadded
-			// datelastactive
+			// date_added
+			// date_lastactive
 			// downloaded
 			// ratio
 			// uploaded
@@ -149,12 +149,7 @@ func (f File) Values(vals map[string]string) Values {
 			"name":     val{value: f.Name},
 			"size":     val{value: f.Size, strFunc: fmtBytes},
 			"progress": val{value: f.Progress, strFunc: fmtPercent},
-			"index": val{
-				value: f.Index,
-				strFunc: func(a any) string {
-					return fmt.Sprintf("%d", f.Index)
-				},
-			},
+			"index":    val{value: f.Index},
 		},
 	}
 	for k, v := range vals {
