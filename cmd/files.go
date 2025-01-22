@@ -62,6 +62,9 @@ to quickly create a Cobra application.`,
 			fmt.Fprint(w, strings.Join(headers, "\t")+"\t\n")
 		}
 
+		// Don't print usage for errors after flag validation
+		cmd.SilenceUsage = true
+
 		out := map[string]struct{}{}
 
 		c := newClient()
@@ -71,7 +74,11 @@ to quickly create a Cobra application.`,
 				for _, f := range c.Files(h) {
 					fields := make([]string, len(columns))
 					for i, key := range columns {
-						fields[i] = f.Get(key).String()
+						val, err := f.Get(key)
+						if err != nil {
+							return fmt.Errorf("key %v not found in object; available keys: [%s]", key, strings.Join(f.Keys(), ","))
+						}
+						fields[i] = val.String()
 					}
 
 					ln := strings.Join(fields, "\t") + "\t\n"
@@ -104,6 +111,5 @@ func init() {
 	// is called directly, e.g.:
 	// filesCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
-	// TODO: validate existence of columns. Passing an invalid key results in a nil pointer panic
 	filesCmd.Flags().StringSliceP("columns", "c", []string{"hash", "size", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.File{}.Values(map[string]string{"hash": ""}).Keys(), ", "))
 }

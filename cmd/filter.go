@@ -11,13 +11,12 @@ import (
 
 type Filter func(torrent.Values) (bool, error)
 
-// TODO: Filters panic when Get(key) returns nil
 func parseFilter(expr string) (Filter, error) {
 	if strings.Contains(expr, "!=") {
 		key, substr, _ := strings.Cut(expr, "!=")
 		return func(v torrent.Values) (bool, error) {
-			value := v.Get(key)
-			if value == nil {
+			value, err := v.Get(key)
+			if err != nil {
 				return false, fmt.Errorf("key %v not found in %v", key, v)
 			}
 			return value.String() != substr, nil
@@ -25,8 +24,8 @@ func parseFilter(expr string) (Filter, error) {
 	} else if strings.Contains(expr, "=") {
 		key, substr, _ := strings.Cut(expr, "=")
 		return func(v torrent.Values) (bool, error) {
-			value := v.Get(key)
-			if value == nil {
+			value, err := v.Get(key)
+			if err != nil {
 				return false, fmt.Errorf("key %v not found in %v", key, v)
 			}
 			return value.String() == substr, nil
@@ -38,8 +37,8 @@ func parseFilter(expr string) (Filter, error) {
 			return nil, err
 		}
 		return func(v torrent.Values) (bool, error) {
-			value := v.Get(k)
-			if value == nil {
+			value, err := v.Get(k)
+			if err != nil {
 				return false, fmt.Errorf("key %v not found in %v", k, v)
 			}
 			return !r.MatchString(value.String()), nil
@@ -51,8 +50,8 @@ func parseFilter(expr string) (Filter, error) {
 			return nil, err
 		}
 		return func(v torrent.Values) (bool, error) {
-			value := v.Get(k)
-			if value == nil {
+			value, err := v.Get(k)
+			if err != nil {
 				return false, fmt.Errorf("key %v not found in %v", k, v)
 			}
 			return r.MatchString(value.String()), nil

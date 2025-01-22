@@ -39,6 +39,9 @@ to quickly create a Cobra application.`,
 			return fmt.Errorf("failed to parse args: %s", err)
 		}
 
+		// Don't print usage for errors after flag validation
+		cmd.SilenceUsage = true
+
 		c := newClient()
 		return c.Resume(mot.WithHashes(args))
 	},

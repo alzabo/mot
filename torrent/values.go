@@ -12,7 +12,7 @@ const (
 )
 
 type Values interface {
-	Get(string) Value
+	Get(string) (Value, error)
 	Keys() []string
 }
 
@@ -26,12 +26,12 @@ type valueWrapper struct {
 	mapping map[string]Value
 }
 
-func (v valueWrapper) Get(s string) Value {
+func (v valueWrapper) Get(s string) (Value, error) {
 	val, ok := v.mapping[s]
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("key %v not found in %v", s, v.mapping)
 	}
-	return val
+	return val, nil
 }
 
 func (v valueWrapper) Keys() []string {

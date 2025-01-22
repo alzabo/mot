@@ -44,6 +44,9 @@ to quickly create a Cobra application.`,
 			return errors.New("specify torrent hashes as args or pipe to stdin")
 		}
 
+		// Don't print usage for errors after flag validation
+		cmd.SilenceUsage = true
+
 		c := newClient()
 
 		// TODO: watch option to exec get torrents command after starting recheck

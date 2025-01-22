@@ -97,6 +97,9 @@ to quickly create a Cobra application.`,
 			return fmt.Errorf("encountered error while parsing filters: %s", err)
 		}
 
+		// Don't print usage for errors after flag validation
+		cmd.SilenceUsage = true
+
 		c := newClient()
 
 		// TODO: This map can grow unbounded. Chances are it doesn't matter much in
@@ -132,7 +135,11 @@ to quickly create a Cobra application.`,
 				// TODO: When states change, the width of lines may also
 				fields := make([]string, len(columns))
 				for i, key := range columns {
-					fields[i] = t.Get(key).String()
+					v, err := t.Get(key)
+					if err != nil {
+						return fmt.Errorf("key %v not found in object; available keys: [%s]", key, strings.Join(t.Keys(), ","))
+					}
+					fields[i] = v.String()
 				}
 
 				ln := strings.Join(fields, "\t") + "\t\n"
@@ -172,7 +179,6 @@ func init() {
 	torrentCmd.Flags().String("tag", "", "Select torrents with the given tag")
 	torrentCmd.Flags().String("state", "", "Select torrents in one of the states: "+strings.Join(torrentStateFilters, ", "))
 
-	// TODO: validate existence of columns. Passing an invalid key results in a nil pointer panic
 	torrentCmd.Flags().StringSliceP("columns", "c", []string{"hash", "state", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Info{}.Values().Keys(), ", "))
 	torrentCmd.Flags().StringArray("filter", nil, "Filters to apply to the torrent list")
 
