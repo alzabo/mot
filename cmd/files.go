@@ -73,12 +73,17 @@ to quickly create a Cobra application.`,
 			for _, h := range args {
 				for _, f := range c.Files(h) {
 					fields := make([]string, len(columns))
-					for i, key := range columns {
+					for i, col := range columns {
+						key, mod, _ := strings.Cut(col, "+")
 						val, err := f.Get(key)
 						if err != nil {
 							return fmt.Errorf("key %v not found in object; available keys: [%s]", key, strings.Join(f.Keys(), ","))
 						}
-						fields[i] = val.String()
+						if mod == "raw" {
+							fields[i] = val.RawString()
+						} else {
+							fields[i] = val.String()
+						}
 					}
 
 					ln := strings.Join(fields, "\t") + "\t\n"

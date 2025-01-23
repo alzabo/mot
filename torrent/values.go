@@ -19,6 +19,7 @@ type Values interface {
 type Value interface {
 	Raw() any
 	String() string
+	RawString() string
 }
 
 type valueWrapper struct {
@@ -65,6 +66,10 @@ func (v val) String() string {
 		f = "%s"
 	}
 	return fmt.Sprintf(f, v.value)
+}
+
+func (v val) RawString() string {
+	return fmt.Sprintf("%v", v.value)
 }
 
 func fmtPercent(a any) string {
