@@ -43,8 +43,8 @@ var torrentStateFilters = []string{
 	"errored",
 }
 
-// torrentCmd represents the torrent command
-var torrentCmd = &cobra.Command{
+// getTorrentCmd represents the torrent command
+var getTorrentCmd = &cobra.Command{
 	Use:     "torrent [hash...]",
 	Aliases: []string{"torrents", "tor", "to"},
 	Short:   "A brief description of your command",
@@ -165,24 +165,24 @@ to quickly create a Cobra application.`,
 }
 
 func init() {
-	getCmd.AddCommand(torrentCmd)
+	getCmd.AddCommand(getTorrentCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// torrentCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// getTorrentCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	torrentCmd.Flags().String("category", "", "Select torrents with the given category")
-	torrentCmd.Flags().String("tag", "", "Select torrents with the given tag")
-	torrentCmd.Flags().String("state", "", "Select torrents in one of the states: "+strings.Join(torrentStateFilters, ", "))
+	getTorrentCmd.Flags().String("category", "", "Select torrents with the given category")
+	getTorrentCmd.Flags().String("tag", "", "Select torrents with the given tag")
+	getTorrentCmd.Flags().String("state", "", "Select torrents in one of the states: "+strings.Join(torrentStateFilters, ", "))
 
-	torrentCmd.Flags().StringSliceP("columns", "c", []string{"hash", "state", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Info{}.Values().Keys(), ", "))
-	torrentCmd.Flags().StringArray("filter", nil, "Filters to apply to the torrent list")
+	getTorrentCmd.Flags().StringSliceP("columns", "c", []string{"hash", "state", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Info{}.Values().Keys(), ", "))
+	getTorrentCmd.Flags().StringArray("filter", nil, "Filters to apply to the torrent list")
 
-	torrentCmd.Flags().StringP("output", "o", "table", "Output format.")
+	getTorrentCmd.Flags().StringP("output", "o", "table", "Output format.")
 	// -o hash; print the hash only
 	// -o wide
 	// -o activity?
