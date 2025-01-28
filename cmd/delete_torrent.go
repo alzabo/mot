@@ -16,23 +16,40 @@ limitations under the License.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
+	mot "github.com/alzabo/mot/pkg"
 	"github.com/spf13/cobra"
 )
 
+var deleteFiles bool
+
 // deleteTorrentCmd represents the torrent command
 var deleteTorrentCmd = &cobra.Command{
-	Use:   "torrent",
-	Short: "A brief description of your command",
+	Use:     "torrent",
+	Aliases: []string{"tor"},
+	Short:   "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("torrent called")
+	RunE: func(cmd *cobra.Command, args []string) error {
+		args, err := parseArgs(cmd, args)
+		if err != nil {
+			return fmt.Errorf("failed to parse args: %s", err)
+		}
+		if len(args) == 0 {
+			return errors.New("specify torrent hashes as args or pipe to stdin")
+		}
+		opts := make([]mot.QueryOption, 0, len(args)+1)
+		opts = append(opts, mot.WithHashes(args))
+		opts = append(opts, mot.WithValue("deleteFiles", fmt.Sprintf("%v", deleteFiles)))
+
+		c := newClient()
+		return c.DeleteTorrents(opts...)
 	},
 }
 
@@ -47,5 +64,7 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// deleteTorrentCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	deleteTorrentCmd.Flags().BoolVar(&deleteFiles, "delete-files", false, "Delete torrent data also.")
+
+	// TODO: interactive mode
 }

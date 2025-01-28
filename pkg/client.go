@@ -200,3 +200,24 @@ func (c *Client) Pause(opts ...QueryOption) error {
 
 	return nil
 }
+
+func (c *Client) DeleteTorrents(opts ...QueryOption) error {
+	p, _ := url.JoinPath(c.BaseUrl, "api/v2/torrents/delete")
+	u, _ := url.Parse(p)
+	params := url.Values{}
+	for _, opt := range opts {
+		opt(&params)
+	}
+	g, err := c.HttpClient.PostForm(u.String(), params)
+	if err != nil {
+		return fmt.Errorf("failed to delete torrents with url %s: %s", u, err)
+	}
+	defer g.Body.Close()
+
+	r, _ := io.ReadAll(g.Body)
+	if len(r) > 0 {
+		return fmt.Errorf("received unexpected response: %s", r)
+	}
+
+	return nil
+}
