@@ -1,7 +1,7 @@
 // DO NOT EDIT
 package torrent
 
-type Trackers []struct {
+type Tracker struct {
 	Msg           string `json:"msg"`
 	NumDownloaded int64  `json:"num_downloaded"`
 	NumLeeches    int64  `json:"num_leeches"`

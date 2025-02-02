@@ -221,3 +221,31 @@ func (c *Client) DeleteTorrents(opts ...QueryOption) error {
 
 	return nil
 }
+
+func (c *Client) Trackers(hash string) []torrent.Values {
+	p, err := url.JoinPath(c.BaseUrl, "api/v2/torrents/trackers")
+	if err != nil {
+		log.Fatalf("failed to create url: %s", err)
+	}
+	u, _ := url.Parse(p)
+	u.RawQuery = url.Values{"hash": {hash}}.Encode()
+	g, err := c.HttpClient.Get(u.String())
+	if err != nil {
+		log.Fatalf("failed to get trackers for hash %s: %s", hash, err)
+	}
+	defer g.Body.Close()
+
+	body, err := io.ReadAll(g.Body)
+	if err != nil {
+		log.Fatalf("failed to read body: %s", err)
+	}
+	var items torrent.Trackers
+	if err := json.Unmarshal(body, &items); err != nil {
+		log.Fatalf("failed to unmarshal file info: %s", err)
+	}
+	values := make([]torrent.Values, len(items))
+	for i, item := range items {
+		values[i] = item.Values(map[string]string{"hash": hash})
+	}
+	return values
+}
