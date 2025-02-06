@@ -64,7 +64,7 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	deleteTorrentCmd.Flags().BoolVar(&deleteFiles, "delete-files", false, "Delete torrent data also.")
+	deleteTorrentCmd.Flags().BoolVarP(&deleteFiles, "delete-files", "f", false, "Delete torrent data also.")
 
 	// TODO: interactive mode
 }
