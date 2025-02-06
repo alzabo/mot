@@ -137,12 +137,11 @@ func (i Info) Values() Values {
 				value:   i.Progress,
 				strFunc: fmtPercent,
 			},
+			"ratio":      val{value: i.Ratio},
+			"downloaded": val{value: i.Downloaded, strFunc: fmtBytes},
+			"uploaded":   val{value: i.Downloaded, strFunc: fmtBytes},
 			// date_added
 			// date_lastactive
-			// downloaded
-			// ratio
-			// uploaded
-			// downloaded
 		},
 	}
 }
