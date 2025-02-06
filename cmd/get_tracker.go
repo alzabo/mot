@@ -29,8 +29,9 @@ import (
 
 // getTrackerCmd represents the tracker command
 var getTrackerCmd = &cobra.Command{
-	Use:   "tracker",
-	Short: "A brief description of your command",
+	Use:     "tracker",
+	Aliases: []string{"trackers"},
+	Short:   "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
