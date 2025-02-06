@@ -1,7 +1,7 @@
 package mot
 
 import (
-	"encoding/json"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -9,6 +9,8 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+
+	"github.com/goccy/go-json"
 
 	"golang.org/x/net/publicsuffix"
 
@@ -96,13 +98,13 @@ func (c *Client) Torrents(opts ...QueryOption) []torrent.Values {
 		log.Fatalf("failed to get torrent info from %s: %s", infoUrl, err)
 	}
 	defer info.Body.Close()
-	_ = info
-	body, err := io.ReadAll(info.Body)
+	var buf bytes.Buffer
+	io.Copy(&buf, info.Body)
 	if err != nil {
 		log.Fatalf("failed to read body: %s", err)
 	}
 	items := make([]torrent.Info, 4000) // TODO: magic number here
-	if err := json.Unmarshal(body, &items); err != nil {
+	if err := json.Unmarshal(buf.Bytes(), &items); err != nil {
 		log.Fatalf("failed to unmarshal torrent info: %s", err)
 	}
 	values := make([]torrent.Values, len(items))
