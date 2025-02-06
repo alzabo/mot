@@ -16,6 +16,7 @@ limitations under the License.
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"slices"
@@ -107,8 +108,9 @@ to quickly create a Cobra application.`,
 		// reclaim memory. https://go.dev/blog/unique
 		out := map[string]struct{}{}
 
+		o := bufio.NewWriter(os.Stdout)
 		w := new(tabwriter.Writer)
-		w.Init(os.Stdout, 1, 4, 3, ' ', 0)
+		w.Init(o, 1, 4, 3, ' ', 0)
 
 		if !noHeaders {
 			// TODO: Print headers again every N lines when watching?
