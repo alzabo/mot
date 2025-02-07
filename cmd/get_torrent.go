@@ -161,6 +161,7 @@ to quickly create a Cobra application.`,
 				}
 				break
 			}
+			o.Flush()
 			time.Sleep(watchSleep)
 		}
 		return nil
