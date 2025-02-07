@@ -109,6 +109,8 @@ to quickly create a Cobra application.`,
 		out := map[string]struct{}{}
 
 		o := bufio.NewWriter(os.Stdout)
+		defer o.Flush()
+
 		w := new(tabwriter.Writer)
 		w.Init(o, 1, 4, 3, ' ', 0)
 
