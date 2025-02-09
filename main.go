@@ -19,16 +19,31 @@ import (
 	"github.com/alzabo/mot/cmd"
 )
 
-//var cpuprofile string = "profile.prof"
+var cpuprofile string = "cpu.prof"
+var memprofile string = "mem.prof"
 
 func main() {
-	//	if cpuprofile != "" {
-	//		f, err := os.Create(cpuprofile)
-	//		if err != nil {
-	//			log.Fatal(err)
-	//		}
-	//		pprof.StartCPUProfile(f)
-	//		defer pprof.StopCPUProfile()
+	//if cpuprofile != "" {
+	//	f, err := os.Create(cpuprofile)
+	//	if err != nil {
+	//		log.Fatal(err)
 	//	}
+	//	pprof.StartCPUProfile(f)
+	//	defer pprof.StopCPUProfile()
+	//}
+
 	cmd.Execute()
+
+	//f, err := os.Create(memprofile)
+
+	//if err != nil {
+	//	log.Fatal("could not create memory profile: ", err)
+	//}
+
+	//defer f.Close() // error handling omitted for example
+	//runtime.GC()    // get up-to-date statistics
+
+	//if err := pprof.WriteHeapProfile(f); err != nil {
+	//	log.Fatal("could not write memory profile: ", err)
+	//}
 }

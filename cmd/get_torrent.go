@@ -124,7 +124,7 @@ to quickly create a Cobra application.`,
 		}
 
 		for {
-			torrents := c.Torrents(opts...)
+			torrents := c.Torrents(columns, opts...)
 		torrent:
 			for _, t := range torrents {
 				for _, f := range filters {
@@ -184,7 +184,7 @@ func init() {
 	getTorrentCmd.Flags().String("tag", "", "Select torrents with the given tag")
 	getTorrentCmd.Flags().String("state", "", "Select torrents in one of the states: "+strings.Join(torrentStateFilters, ", "))
 
-	getTorrentCmd.Flags().StringSliceP("columns", "c", []string{"hash", "state", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Info{}.Values().Keys(), ", "))
+	getTorrentCmd.Flags().StringSliceP("columns", "c", []string{"hash", "state", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Info{}.Values(nil).Keys(), ", "))
 	getTorrentCmd.Flags().StringArray("filter", nil, "Filters to apply to the torrent list")
 
 	getTorrentCmd.Flags().StringP("output", "o", "table", "Output format.")

@@ -82,7 +82,7 @@ func WithValue(key, val string) QueryOption {
 	}
 }
 
-func (c *Client) Torrents(opts ...QueryOption) []torrent.Values {
+func (c *Client) Torrents(keys []string, opts ...QueryOption) []torrent.Values {
 	infoApi, err := url.JoinPath(c.BaseUrl, torrentInfo)
 	if err != nil {
 		log.Fatalf("failed to create url: %s", err)
@@ -109,7 +109,7 @@ func (c *Client) Torrents(opts ...QueryOption) []torrent.Values {
 	}
 	values := make([]torrent.Values, len(items))
 	for i, item := range items {
-		values[i] = item.Values()
+		values[i] = item.Values(keys)
 	}
 	return values
 }

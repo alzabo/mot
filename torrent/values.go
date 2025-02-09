@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"fmt"
+	"strings"
 )
 
 const (
@@ -72,6 +73,10 @@ func (v val) RawString() string {
 	return fmt.Sprintf("%v", v.value)
 }
 
+func fmtRaw(a any) string {
+	return fmt.Sprintf("%v", a)
+}
+
 func fmtPercent(a any) string {
 	switch v := a.(type) {
 	case float64:
@@ -119,31 +124,53 @@ func fmtBytes(a any) string {
 	}
 }
 
-// Explicitly maps keys to value representations
-func (i Info) Values() Values {
-	return valueWrapper{
-		item: i,
-		mapping: map[string]Value{
-			"name":       val{value: i.Name},
-			"hash":       val{value: i.Hash},
-			"state":      val{value: i.State},
-			"size":       val{value: i.Size, strFunc: fmtBytes},
-			"tags":       val{value: i.Tags},
-			"category":   val{value: i.Category},
-			"speed_down": val{value: i.Dlspeed, strFunc: fmtRate},
-			"speed_up":   val{value: i.Upspeed, strFunc: fmtRate},
-			"tracker":    val{value: i.Tracker},
-			"progress": val{
-				value:   i.Progress,
-				strFunc: fmtPercent,
-			},
-			"ratio":      val{value: i.Ratio},
-			"downloaded": val{value: i.Downloaded, strFunc: fmtBytes},
-			"uploaded":   val{value: i.Downloaded, strFunc: fmtBytes},
-			// date_added
-			// date_lastactive
-		},
+var infoValuesMapping = map[string]func(Info) Value{
+	"name":       func(i Info) Value { return val{value: i.Name} },
+	"hash":       func(i Info) Value { return val{value: i.Hash} },
+	"state":      func(i Info) Value { return val{value: i.State} },
+	"size":       func(i Info) Value { return val{value: i.Size, strFunc: fmtBytes} },
+	"tags":       func(i Info) Value { return val{value: i.Tags} },
+	"category":   func(i Info) Value { return val{value: i.Category} },
+	"speed_down": func(i Info) Value { return val{value: i.Dlspeed, strFunc: fmtRate} },
+	"speed_up":   func(i Info) Value { return val{value: i.Upspeed, strFunc: fmtRate} },
+	"tracker":    func(i Info) Value { return val{value: i.Tracker} },
+	"progress": func(i Info) Value {
+		return val{
+			value:   i.Progress,
+			strFunc: fmtPercent,
+		}
+	},
+	"ratio":      func(i Info) Value { return val{value: i.Ratio} },
+	"downloaded": func(i Info) Value { return val{value: i.Downloaded, strFunc: fmtBytes} },
+	"uploaded":   func(i Info) Value { return val{value: i.Downloaded, strFunc: fmtBytes} },
+	// date_added
+	// date_lastactive
+
+}
+
+// Values returns Values object containing requested keys
+func (i Info) Values(keys []string) Values {
+	vals := valueWrapper{
+		item:    i,
+		mapping: map[string]Value{},
 	}
+	for _, key := range keys {
+		k, mod, _ := strings.Cut(key, "+")
+		f := infoValuesMapping[k]
+		if f == nil {
+			continue
+		}
+		vals.mapping[k] = f(i)
+
+		switch mod {
+		case "raw":
+			vals.mapping[key] = val{
+				value:   vals.mapping[k].Raw(),
+				strFunc: fmtRaw,
+			}
+		}
+	}
+	return vals
 }
 
 func (f File) Values(vals map[string]string) Values {
