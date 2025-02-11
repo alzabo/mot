@@ -16,6 +16,10 @@ limitations under the License.
 package main
 
 import (
+	"log"
+	"os"
+	"runtime/pprof"
+
 	"github.com/alzabo/mot/cmd"
 )
 
@@ -23,14 +27,14 @@ var cpuprofile string = "cpu.prof"
 var memprofile string = "mem.prof"
 
 func main() {
-	//if cpuprofile != "" {
-	//	f, err := os.Create(cpuprofile)
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	//	pprof.StartCPUProfile(f)
-	//	defer pprof.StopCPUProfile()
-	//}
+	if cpuprofile != "" {
+		f, err := os.Create(cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 
 	cmd.Execute()
 

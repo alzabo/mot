@@ -114,17 +114,18 @@ to quickly create a Cobra application.`,
 		w := new(tabwriter.Writer)
 		w.Init(o, 1, 4, 3, ' ', 0)
 
+		fields := make([]string, len(columns))
+
 		if !noHeaders {
 			// TODO: Print headers again every N lines when watching?
-			headers := make([]string, len(columns))
 			for i, key := range columns {
-				headers[i] = strings.ToUpper(key)
+				fields[i] = strings.ToUpper(key)
 			}
-			fmt.Fprint(w, strings.Join(headers, "\t")+"\t\n")
+			fmt.Fprint(w, strings.Join(fields, "\t")+"\t\n")
 		}
 
 		for {
-			torrents := c.Torrents(columns, opts...)
+			torrents := c.Torrents(opts...)
 		torrent:
 			for _, t := range torrents {
 				for _, f := range filters {
@@ -137,7 +138,6 @@ to quickly create a Cobra application.`,
 					}
 				}
 				// TODO: When states change, the width of lines may also
-				fields := make([]string, len(columns))
 				for i, key := range columns {
 					v, err := t.Get(key)
 					if err != nil {
@@ -184,7 +184,7 @@ func init() {
 	getTorrentCmd.Flags().String("tag", "", "Select torrents with the given tag")
 	getTorrentCmd.Flags().String("state", "", "Select torrents in one of the states: "+strings.Join(torrentStateFilters, ", "))
 
-	getTorrentCmd.Flags().StringSliceP("columns", "c", []string{"hash", "state", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Info{}.Values(nil).Keys(), ", "))
+	getTorrentCmd.Flags().StringSliceP("columns", "c", []string{"hash", "state", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Info{}.Keys(), ", "))
 	getTorrentCmd.Flags().StringArray("filter", nil, "Filters to apply to the torrent list")
 
 	getTorrentCmd.Flags().StringP("output", "o", "table", "Output format.")

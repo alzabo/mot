@@ -9,6 +9,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/goccy/go-json"
 
@@ -38,6 +39,11 @@ func NewClient(url string, username string, password string) (Client, error) {
 	}
 	client.HttpClient = http.Client{
 		Jar: jar,
+		Transport: &http.Transport{
+			MaxIdleConns:        10,
+			MaxIdleConnsPerHost: 10,
+			IdleConnTimeout:     30 * time.Second,
+		},
 	}
 	err = client.Login(username, password)
 	return client, err
@@ -82,7 +88,7 @@ func WithValue(key, val string) QueryOption {
 	}
 }
 
-func (c *Client) Torrents(keys []string, opts ...QueryOption) []torrent.Values {
+func (c *Client) Torrents(opts ...QueryOption) []torrent.Info {
 	infoApi, err := url.JoinPath(c.BaseUrl, torrentInfo)
 	if err != nil {
 		log.Fatalf("failed to create url: %s", err)
@@ -107,11 +113,7 @@ func (c *Client) Torrents(keys []string, opts ...QueryOption) []torrent.Values {
 	if err := json.Unmarshal(buf.Bytes(), &items); err != nil {
 		log.Fatalf("failed to unmarshal torrent info: %s", err)
 	}
-	values := make([]torrent.Values, len(items))
-	for i, item := range items {
-		values[i] = item.Values(keys)
-	}
-	return values
+	return items
 }
 
 func (c *Client) Files(hash string) []torrent.Values {
@@ -225,6 +227,7 @@ func (c *Client) DeleteTorrents(opts ...QueryOption) error {
 }
 
 func (c *Client) Trackers(hash string) []torrent.Values {
+	var err error
 	p, err := url.JoinPath(c.BaseUrl, "api/v2/torrents/trackers")
 	if err != nil {
 		log.Fatalf("failed to create url: %s", err)
@@ -237,12 +240,13 @@ func (c *Client) Trackers(hash string) []torrent.Values {
 	}
 	defer g.Body.Close()
 
-	body, err := io.ReadAll(g.Body)
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, g.Body)
 	if err != nil {
 		log.Fatalf("failed to read body: %s", err)
 	}
 	var items torrent.Trackers
-	if err := json.Unmarshal(body, &items); err != nil {
+	if err := json.Unmarshal(buf.Bytes(), &items); err != nil {
 		log.Fatalf("failed to unmarshal file info: %s", err)
 	}
 	values := make([]torrent.Values, len(items))

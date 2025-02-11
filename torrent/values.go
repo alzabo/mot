@@ -124,53 +124,59 @@ func fmtBytes(a any) string {
 	}
 }
 
-var infoValuesMapping = map[string]func(Info) Value{
-	"name":       func(i Info) Value { return val{value: i.Name} },
-	"hash":       func(i Info) Value { return val{value: i.Hash} },
-	"state":      func(i Info) Value { return val{value: i.State} },
-	"size":       func(i Info) Value { return val{value: i.Size, strFunc: fmtBytes} },
-	"tags":       func(i Info) Value { return val{value: i.Tags} },
-	"category":   func(i Info) Value { return val{value: i.Category} },
-	"speed_down": func(i Info) Value { return val{value: i.Dlspeed, strFunc: fmtRate} },
-	"speed_up":   func(i Info) Value { return val{value: i.Upspeed, strFunc: fmtRate} },
-	"tracker":    func(i Info) Value { return val{value: i.Tracker} },
-	"progress": func(i Info) Value {
-		return val{
-			value:   i.Progress,
-			strFunc: fmtPercent,
-		}
-	},
-	"ratio":      func(i Info) Value { return val{value: i.Ratio} },
-	"downloaded": func(i Info) Value { return val{value: i.Downloaded, strFunc: fmtBytes} },
-	"uploaded":   func(i Info) Value { return val{value: i.Downloaded, strFunc: fmtBytes} },
+var infoKeyMapping = map[string]func(Info) any{
+	"name":       func(i Info) any { return i.Name },
+	"hash":       func(i Info) any { return i.Hash },
+	"state":      func(i Info) any { return i.State },
+	"size":       func(i Info) any { return i.Size },
+	"tags":       func(i Info) any { return i.Tags },
+	"category":   func(i Info) any { return i.Category },
+	"speed_down": func(i Info) any { return i.Dlspeed },
+	"speed_up":   func(i Info) any { return i.Upspeed },
+	"tracker":    func(i Info) any { return i.Tracker },
+	"progress":   func(i Info) any { return i.Progress },
+	"ratio":      func(i Info) any { return i.Ratio },
+	"downloaded": func(i Info) any { return i.Downloaded },
+	"uploaded":   func(i Info) any { return i.Downloaded },
 	// date_added
 	// date_lastactive
-
 }
 
-// Values returns Values object containing requested keys
-func (i Info) Values(keys []string) Values {
-	vals := valueWrapper{
-		item:    i,
-		mapping: map[string]Value{},
-	}
-	for _, key := range keys {
-		k, mod, _ := strings.Cut(key, "+")
-		f := infoValuesMapping[k]
-		if f == nil {
-			continue
-		}
-		vals.mapping[k] = f(i)
+var infoFmtMapping = map[string]func(any) string{
+	"size":       fmtBytes,
+	"speed_down": fmtRate,
+	"speed_up":   fmtRate,
+	"progress":   fmtPercent,
+	"downloaded": fmtBytes,
+	"uploaded":   fmtBytes,
+	// date_added
+	// date_lastactive
+}
 
-		switch mod {
-		case "raw":
-			vals.mapping[key] = val{
-				value:   vals.mapping[k].Raw(),
-				strFunc: fmtRaw,
-			}
-		}
+func (i Info) Get(key string) (Value, error) {
+	k, mod, _ := strings.Cut(key, "+")
+
+	f := infoKeyMapping[k]
+	if f == nil {
+		return val{}, fmt.Errorf("key %q not found", key)
 	}
-	return vals
+
+	switch mod {
+	case "raw":
+		return val{f(i), fmtRaw}, nil
+	case "":
+		return val{f(i), infoFmtMapping[k]}, nil
+	default:
+		return val{}, fmt.Errorf("unknown format modifier %q specified in key %s", mod, key)
+	}
+}
+
+func (i Info) Keys() []string {
+	keys := make([]string, 0, len(infoKeyMapping))
+	for k := range infoKeyMapping {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 func (f File) Values(vals map[string]string) Values {

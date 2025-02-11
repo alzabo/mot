@@ -39,12 +39,20 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		args, err := parseArgs(cmd, args)
+		var err error
+		all, err := cmd.Flags().GetBool("all")
+		if err != nil {
+			return err
+		}
+		args, err = parseArgs(cmd, args)
 		if err != nil {
 			return fmt.Errorf("failed to parse args: %s", err)
 		}
-		if len(args) == 0 {
+		if !all && len(args) == 0 {
 			return errors.New("specify torrent hashes as args or pipe to stdin")
+		}
+		if all && len(args) > 0 {
+			return errors.New("option --all may not be combined with hashes specified as args or stdin")
 		}
 
 		columns, err := cmd.Flags().GetStringSlice("columns")
@@ -78,8 +86,17 @@ to quickly create a Cobra application.`,
 
 		c := newClient()
 
+		hashes := []string{}
+		if all && len(args) == 0 {
+			for _, t := range c.Torrents() {
+				hashes = append(hashes, t.Hash)
+			}
+		} else {
+			hashes = args
+		}
+
 		for {
-			for _, h := range args {
+			for _, h := range hashes {
 			tracker:
 				for _, t := range c.Trackers(h) {
 					for _, f := range filters {
@@ -137,4 +154,5 @@ func init() {
 	// getTrackerCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	getTrackerCmd.Flags().StringSliceP("columns", "c", []string{"hash", "status", "url", "message"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Tracker{}.Values(map[string]string{"hash": ""}).Keys(), ", "))
 	getTrackerCmd.Flags().StringArray("filter", []string{"status!=DISABLED"}, "Filters to apply to the torrent list")
+	getTrackerCmd.Flags().BoolP("all", "a", false, "Get all trackers for all torrents")
 }
