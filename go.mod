@@ -8,6 +8,7 @@ require (
 	github.com/spf13/viper v1.19.0
 	golang.org/x/net v0.26.0
 	golang.org/x/term v0.28.0
+	golang.org/x/time v0.10.0
 )
 
 require (

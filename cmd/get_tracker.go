@@ -96,42 +96,40 @@ to quickly create a Cobra application.`,
 		}
 
 		for {
-			for _, h := range hashes {
-			tracker:
-				for _, t := range c.Trackers(h) {
-					for _, f := range filters {
-						match, err := f(t)
-						if err != nil {
-							return err
-						}
-						if !match {
-							continue tracker
-						}
-
+		tracker:
+			for _, t := range c.Trackers(hashes) {
+				for _, f := range filters {
+					match, err := f(t)
+					if err != nil {
+						return err
 					}
-					fields := make([]string, len(columns))
-					for i, col := range columns {
-						key, mod, _ := strings.Cut(col, "+")
-						val, err := t.Get(key)
-						if err != nil {
-							return fmt.Errorf("key %v not found in object; available keys: [%s]", key, strings.Join(t.Keys(), ","))
-						}
-						if mod == "raw" {
-							fields[i] = val.RawString()
-						} else {
-							fields[i] = val.String()
-						}
+					if !match {
+						continue tracker
 					}
 
-					ln := strings.Join(fields, "\t") + "\t\n"
-					if _, ok := out[ln]; ok {
-						continue
-					}
-					out[ln] = struct{}{}
-					fmt.Fprint(w, ln)
 				}
+				fields := make([]string, len(columns))
+				for i, col := range columns {
+					key, mod, _ := strings.Cut(col, "+")
+					val, err := t.Get(key)
+					if err != nil {
+						return fmt.Errorf("key %v not found in object; available keys: [%s]", key, strings.Join(t.Keys(), ","))
+					}
+					if mod == "raw" {
+						fields[i] = val.RawString()
+					} else {
+						fields[i] = val.String()
+					}
+				}
+
+				ln := strings.Join(fields, "\t") + "\t\n"
+				if _, ok := out[ln]; ok {
+					continue
+				}
+				out[ln] = struct{}{}
+				fmt.Fprint(w, ln)
+				w.Flush()
 			}
-			w.Flush()
 			if !watch {
 				return nil
 			}

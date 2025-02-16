@@ -2,6 +2,7 @@ package mot
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -14,18 +15,21 @@ import (
 	"github.com/goccy/go-json"
 
 	"golang.org/x/net/publicsuffix"
+	"golang.org/x/time/rate"
 
 	"github.com/alzabo/mot/torrent"
 )
 
 const (
-	login       = "/api/v2/auth/login"
-	torrentInfo = "/api/v2/torrents/info"
+	login             = "/api/v2/auth/login"
+	torrentInfo       = "/api/v2/torrents/info"
+	torrentHashHeader = "X-Torrent-Hash"
 )
 
 type Client struct {
 	HttpClient http.Client
 	BaseUrl    string
+	Limiter    *rate.Limiter
 }
 
 func NewClient(url string, username string, password string) (Client, error) {
@@ -46,6 +50,11 @@ func NewClient(url string, username string, password string) (Client, error) {
 		},
 	}
 	err = client.Login(username, password)
+
+	// TODO: Magic numbers here. These limits generally work OK, but sometimes hang.
+	// Need to handle hanging requests better, actually back off and recover.
+	client.Limiter = rate.NewLimiter(rate.Limit(1500), 300)
+
 	return client, err
 }
 
@@ -226,32 +235,83 @@ func (c *Client) DeleteTorrents(opts ...QueryOption) error {
 	return nil
 }
 
-func (c *Client) Trackers(hash string) []torrent.Values {
+func (c *Client) Trackers(hashes []string) []torrent.Values {
 	var err error
 	p, err := url.JoinPath(c.BaseUrl, "api/v2/torrents/trackers")
 	if err != nil {
 		log.Fatalf("failed to create url: %s", err)
 	}
-	u, _ := url.Parse(p)
-	u.RawQuery = url.Values{"hash": {hash}}.Encode()
-	g, err := c.HttpClient.Get(u.String())
-	if err != nil {
-		log.Fatalf("failed to get trackers for hash %s: %s", hash, err)
+	reqs := make([]*http.Request, len(hashes))
+	for i, h := range hashes {
+		u, _ := url.Parse(p)
+		u.RawQuery = url.Values{"hash": {h}}.Encode()
+		reqs[i] = &http.Request{
+			Method: "GET",
+			URL:    u,
+			Header: http.Header{
+				torrentHashHeader: []string{h},
+			},
+		}
 	}
-	defer g.Body.Close()
 
-	var buf bytes.Buffer
-	_, err = io.Copy(&buf, g.Body)
-	if err != nil {
-		log.Fatalf("failed to read body: %s", err)
+	items := make(torrent.Trackers, 0, len(hashes))
+	resps := c.sendBatchRequests(reqs)
+	for _, resp := range resps {
+		defer resp.Body.Close()
+
+		var buf bytes.Buffer
+		_, err = io.Copy(&buf, resp.Body)
+
+		if err != nil {
+			log.Fatalf("failed to read body: %s", err)
+		}
+
+		var trackers torrent.Trackers
+		if err := json.Unmarshal(buf.Bytes(), &trackers); err != nil {
+			log.Fatalf("failed to unmarshal response with error: %s", err)
+		}
+
+		for _, t := range trackers {
+			t.Hash = resp.Request.Header.Get(torrentHashHeader)
+			items = append(items, t)
+		}
 	}
-	var items torrent.Trackers
-	if err := json.Unmarshal(buf.Bytes(), &items); err != nil {
-		log.Fatalf("failed to unmarshal file info: %s", err)
-	}
+
 	values := make([]torrent.Values, len(items))
 	for i, item := range items {
-		values[i] = item.Values(map[string]string{"hash": hash})
+		values[i] = item.Values(map[string]string{})
 	}
 	return values
+}
+
+func (c *Client) sendBatchRequests(reqs []*http.Request) []*http.Response {
+	respChan := make(chan *http.Response, len(reqs))
+	ctx := context.Background()
+
+	for _, req := range reqs {
+		//fmt.Println(req)
+		c.Limiter.Wait(ctx)
+		// Launch a goroutine for each request
+		go func(r *http.Request) {
+			// TODO: Handle errors
+			resp, _ := c.sendRequest(r)
+			respChan <- resp
+		}(req)
+	}
+
+	responses := make([]*http.Response, len(reqs))
+	for i := range len(reqs) {
+		responses[i] = <-respChan
+	}
+
+	close(respChan)
+	return responses
+}
+
+func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
+	resp, err := c.HttpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }

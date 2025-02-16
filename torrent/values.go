@@ -199,6 +199,7 @@ func (t Tracker) Values(vals map[string]string) Values {
 	w := valueWrapper{
 		item: t,
 		mapping: map[string]Value{
+			"hash":    val{value: t.Hash},
 			"message": val{value: t.Msg},
 			"url":     val{value: t.URL},
 			"status": val{value: t.Status, strFunc: func(v any) string {
