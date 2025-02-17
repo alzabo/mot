@@ -6,4 +6,3 @@ package torrent
 
 type Files []File
 
-type Trackers []Tracker

@@ -194,39 +194,3 @@ func (f File) Values(vals map[string]string) Values {
 	}
 	return w
 }
-
-func (t Tracker) Values(vals map[string]string) Values {
-	w := valueWrapper{
-		item: t,
-		mapping: map[string]Value{
-			"hash":    val{value: t.Hash},
-			"message": val{value: t.Msg},
-			"url":     val{value: t.URL},
-			"status": val{value: t.Status, strFunc: func(v any) string {
-				m := map[int64]string{
-					0: "DISABLED",
-					1: "NOT_CONTACTED",
-					2: "OK",
-					3: "UPDATING",
-					4: "NOT_WORKING",
-				}
-				switch s := v.(type) {
-				case int64:
-					status, ok := m[s]
-					if ok {
-						return status
-					}
-				}
-				return "INVALID"
-			}},
-			"peers":     val{value: t.NumPeers},
-			"seeds":     val{value: t.NumSeeds},
-			"leeches":   val{value: t.NumLeeches},
-			"downloads": val{value: t.NumDownloaded},
-		},
-	}
-	for k, v := range vals {
-		w.mapping[k] = val{value: v}
-	}
-	return w
-}

@@ -150,7 +150,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// getTrackerCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	getTrackerCmd.Flags().StringSliceP("columns", "c", []string{"hash", "status", "url", "message"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Tracker{}.Values(map[string]string{"hash": ""}).Keys(), ", "))
+	getTrackerCmd.Flags().StringSliceP("columns", "c", []string{"hash", "status", "url", "message"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Tracker{}.Keys(), ", "))
 	getTrackerCmd.Flags().StringArray("filter", []string{"status!=DISABLED"}, "Filters to apply to the torrent list")
 	getTrackerCmd.Flags().BoolP("all", "a", false, "Get all trackers for all torrents")
 }

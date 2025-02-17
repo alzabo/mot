@@ -235,7 +235,7 @@ func (c *Client) DeleteTorrents(opts ...QueryOption) error {
 	return nil
 }
 
-func (c *Client) Trackers(hashes []string) []torrent.Values {
+func (c *Client) Trackers(hashes []string) torrent.Trackers {
 	var err error
 	p, err := url.JoinPath(c.BaseUrl, "api/v2/torrents/trackers")
 	if err != nil {
@@ -277,11 +277,7 @@ func (c *Client) Trackers(hashes []string) []torrent.Values {
 		}
 	}
 
-	values := make([]torrent.Values, len(items))
-	for i, item := range items {
-		values[i] = item.Values(map[string]string{})
-	}
-	return values
+	return items
 }
 
 func (c *Client) sendBatchRequests(reqs []*http.Request) []*http.Response {
