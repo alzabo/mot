@@ -50,6 +50,16 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			return err
 		}
+
+		rawFilters, err := cmd.Flags().GetStringArray("filter")
+		if err != nil {
+			return fmt.Errorf("failed to parse command line filters: %s", err)
+		}
+		filters, err := parseFilters(rawFilters)
+		if err != nil {
+			return fmt.Errorf("encountered error while parsing filters: %s", err)
+		}
+
 		// Don't print usage for errors after flag validation
 		cmd.SilenceUsage = true
 
@@ -62,7 +72,16 @@ to quickly create a Cobra application.`,
 
 		for {
 			for _, h := range args {
+			file:
 				for _, f := range c.Files(h) {
+					ok, err := filters.All(f)
+					if err != nil {
+						return err
+					}
+					if !ok {
+						continue file
+					}
+
 					fields := make([]string, len(columns))
 					for i, key := range columns {
 						val, err := f.Get(key)
@@ -96,5 +115,6 @@ func init() {
 	// is called directly, e.g.:
 	// filesCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
-	getFilesCmd.Flags().StringSliceP("columns", "c", []string{"hash", "size", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.File{}.Values(map[string]string{"hash": ""}).Keys(), ", "))
+	getFilesCmd.Flags().StringSliceP("columns", "c", []string{"hash", "size", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.File{}.Keys(), ", "))
+	getFilesCmd.Flags().StringArray("filter", nil, "Filters to apply to the torrent list")
 }
