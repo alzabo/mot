@@ -59,6 +59,11 @@ to quickly create a Cobra application.`,
 			return err
 		}
 
+		if cmd.Flag("output").Value.String() == "hash" {
+			columns = []string{"hash"}
+			noHeaders = true
+		}
+
 		rawFilters, err := cmd.Flags().GetStringArray("filter")
 		if err != nil {
 			return fmt.Errorf("failed to parse command line filters: %s", err)
@@ -132,4 +137,5 @@ func init() {
 	getTrackerCmd.Flags().StringSliceP("columns", "c", []string{"hash", "status", "url", "message"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Tracker{}.Keys(), ", "))
 	getTrackerCmd.Flags().StringArray("filter", []string{"status!=DISABLED"}, "Filters to apply to the torrent list")
 	getTrackerCmd.Flags().BoolP("all", "a", false, "Get all trackers for all torrents")
+	getTrackerCmd.Flags().StringP("output", "o", "table", "Output format.")
 }
