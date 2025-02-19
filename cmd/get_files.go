@@ -27,7 +27,7 @@ import (
 )
 
 // filesCmd represents the files command
-var filesCmd = &cobra.Command{
+var getFilesCmd = &cobra.Command{
 	Use:     "files hash...",
 	Aliases: []string{"file"},
 	Short:   "A brief description of your command",
@@ -89,7 +89,7 @@ to quickly create a Cobra application.`,
 }
 
 func init() {
-	getCmd.AddCommand(filesCmd)
+	getCmd.AddCommand(getFilesCmd)
 
 	// Here you will define your flags and configuration settings.
 
@@ -101,5 +101,5 @@ func init() {
 	// is called directly, e.g.:
 	// filesCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
-	filesCmd.Flags().StringSliceP("columns", "c", []string{"hash", "size", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.File{}.Values(map[string]string{"hash": ""}).Keys(), ", "))
+	getFilesCmd.Flags().StringSliceP("columns", "c", []string{"hash", "size", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.File{}.Values(map[string]string{"hash": ""}).Keys(), ", "))
 }
