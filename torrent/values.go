@@ -23,27 +23,6 @@ type Value interface {
 	RawString() string
 }
 
-type valueWrapper struct {
-	item    any
-	mapping map[string]Value
-}
-
-func (v valueWrapper) Get(s string) (Value, error) {
-	val, ok := v.mapping[s]
-	if !ok {
-		return nil, fmt.Errorf("key %v not found in %v", s, v.mapping)
-	}
-	return val, nil
-}
-
-func (v valueWrapper) Keys() []string {
-	keys := make([]string, 0, len(v.mapping))
-	for k := range v.mapping {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
 type val struct {
 	value   any
 	strFunc func(any) string
@@ -178,20 +157,4 @@ func (i Info) Keys() []string {
 		keys = append(keys, k)
 	}
 	return keys
-}
-
-func (f File) Values(vals map[string]string) Values {
-	w := valueWrapper{
-		item: f,
-		mapping: map[string]Value{
-			"name":     val{value: f.Name},
-			"size":     val{value: f.Size, strFunc: fmtBytes},
-			"progress": val{value: f.Progress, strFunc: fmtPercent},
-			"index":    val{value: f.Index},
-		},
-	}
-	for k, v := range vals {
-		w.mapping[k] = val{value: v}
-	}
-	return w
 }

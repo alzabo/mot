@@ -125,7 +125,7 @@ func (c *Client) Torrents(opts ...QueryOption) []torrent.Info {
 	return items
 }
 
-func (c *Client) Files(hash string) []torrent.Values {
+func (c *Client) Files(hash string) torrent.Files {
 	p, err := url.JoinPath(c.BaseUrl, "api/v2/torrents/files")
 	if err != nil {
 		log.Fatalf("failed to create url: %s", err)
@@ -142,15 +142,14 @@ func (c *Client) Files(hash string) []torrent.Values {
 	if err != nil {
 		log.Fatalf("failed to read body: %s", err)
 	}
-	var items torrent.Files
-	if err := json.Unmarshal(body, &items); err != nil {
+	var files torrent.Files
+	if err := json.Unmarshal(body, &files); err != nil {
 		log.Fatalf("failed to unmarshal file info: %s", err)
 	}
-	values := make([]torrent.Values, len(items))
-	for i, item := range items {
-		values[i] = item.Values(map[string]string{"hash": hash})
+	for i := range files {
+		files[i].Hash = hash
 	}
-	return values
+	return files
 }
 
 // TODO: The API for these is inconsistent. Other methods panic, this returns error
