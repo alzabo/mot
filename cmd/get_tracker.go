@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/alzabo/mot/torrent"
@@ -60,16 +59,6 @@ to quickly create a Cobra application.`,
 			return err
 		}
 
-		w := new(tabwriter.Writer)
-		w.Init(os.Stdout, 1, 4, 3, ' ', 0)
-		if !noHeaders {
-			headers := make([]string, len(columns))
-			for i, key := range columns {
-				headers[i] = strings.ToUpper(key)
-			}
-			fmt.Fprint(w, strings.Join(headers, "\t")+"\t\n")
-		}
-
 		rawFilters, err := cmd.Flags().GetStringArray("filter")
 		if err != nil {
 			return fmt.Errorf("failed to parse command line filters: %s", err)
@@ -82,7 +71,10 @@ to quickly create a Cobra application.`,
 		// Don't print usage for errors after flag validation
 		cmd.SilenceUsage = true
 
-		out := map[string]struct{}{}
+		w := writer(os.Stdout)
+		if !noHeaders {
+			w.WriteFunc(columns, strings.ToUpper)
+		}
 
 		c := newClient()
 
@@ -109,27 +101,16 @@ to quickly create a Cobra application.`,
 
 				}
 				fields := make([]string, len(columns))
-				for i, col := range columns {
-					key, mod, _ := strings.Cut(col, "+")
+				for i, key := range columns {
 					val, err := t.Get(key)
 					if err != nil {
 						return fmt.Errorf("key %v not found in object; available keys: [%s]", key, strings.Join(t.Keys(), ","))
 					}
-					if mod == "raw" {
-						fields[i] = val.RawString()
-					} else {
-						fields[i] = val.String()
-					}
+					fields[i] = val.String()
 				}
-
-				ln := strings.Join(fields, "\t") + "\t\n"
-				if _, ok := out[ln]; ok {
-					continue
-				}
-				out[ln] = struct{}{}
-				fmt.Fprint(w, ln)
-				w.Flush()
+				w.WriteOnce(fields)
 			}
+			w.Flush()
 			if !watch {
 				return nil
 			}

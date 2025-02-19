@@ -282,11 +282,8 @@ func (c *Client) Trackers(hashes []string) torrent.Trackers {
 
 func (c *Client) sendBatchRequests(reqs []*http.Request) []*http.Response {
 	respChan := make(chan *http.Response, len(reqs))
-	ctx := context.Background()
-
 	for _, req := range reqs {
 		//fmt.Println(req)
-		c.Limiter.Wait(ctx)
 		// Launch a goroutine for each request
 		go func(r *http.Request) {
 			// TODO: Handle errors
@@ -305,6 +302,8 @@ func (c *Client) sendBatchRequests(reqs []*http.Request) []*http.Response {
 }
 
 func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
+	ctx := context.Background()
+	c.Limiter.Wait(ctx)
 	resp, err := c.HttpClient.Do(req)
 	if err != nil {
 		return nil, err

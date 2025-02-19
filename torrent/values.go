@@ -138,6 +138,7 @@ var infoKeyMapping = map[string]func(Info) any{
 	"ratio":      func(i Info) any { return i.Ratio },
 	"downloaded": func(i Info) any { return i.Downloaded },
 	"uploaded":   func(i Info) any { return i.Downloaded },
+	"added":      func(i Info) any { return i.AddedOn },
 	// date_added
 	// date_lastactive
 }
