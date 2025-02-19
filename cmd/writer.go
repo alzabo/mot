@@ -9,6 +9,9 @@ import (
 	"text/tabwriter"
 )
 
+// TODO: The cache map can grow unbounded. Chances are it doesn't matter much in
+// practice, but interning the strings would allow the garbage collector to
+// reclaim memory. https://go.dev/blog/unique
 func writer(output io.Writer) tableWriter {
 	bufWriter := bufio.NewWriter(output)
 	w := new(tabwriter.Writer)

@@ -11,6 +11,18 @@ import (
 
 type Filter func(torrent.Values) (bool, error)
 
+type Filters []Filter
+
+func (fs Filters) All(item torrent.Values) (bool, error) {
+	for _, f := range fs {
+		ok, err := f(item)
+		if !ok || err != nil {
+			return ok, err
+		}
+	}
+	return true, nil
+}
+
 func parseFilter(expr string) (Filter, error) {
 	if strings.Contains(expr, "!=") {
 		key, substr, _ := strings.Cut(expr, "!=")
@@ -61,8 +73,8 @@ func parseFilter(expr string) (Filter, error) {
 
 }
 
-func parseFilters(exprs []string) ([]Filter, error) {
-	filters := make([]Filter, len(exprs))
+func parseFilters(exprs []string) (Filters, error) {
+	filters := make(Filters, len(exprs))
 	errs := make([]error, len(exprs))
 	for i, e := range exprs {
 		filters[i], errs[i] = parseFilter(e)

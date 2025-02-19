@@ -16,12 +16,10 @@ limitations under the License.
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"slices"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	mot "github.com/alzabo/mot/pkg"
@@ -103,39 +101,25 @@ to quickly create a Cobra application.`,
 
 		c := newClient()
 
-		// TODO: This map can grow unbounded. Chances are it doesn't matter much in
-		// practice, but interning the strings would allow the garbage collector to
-		// reclaim memory. https://go.dev/blog/unique
-		out := map[string]struct{}{}
-
-		o := bufio.NewWriter(os.Stdout)
-		defer o.Flush()
-
-		w := new(tabwriter.Writer)
-		w.Init(o, 1, 4, 3, ' ', 0)
+		w := writer(os.Stdout)
 
 		fields := make([]string, len(columns))
 
 		if !noHeaders {
 			// TODO: Print headers again every N lines when watching?
-			for i, key := range columns {
-				fields[i] = strings.ToUpper(key)
-			}
-			fmt.Fprint(w, strings.Join(fields, "\t")+"\t\n")
+			w.WriteFunc(columns, strings.ToUpper)
 		}
 
 		for {
 			torrents := c.Torrents(opts...)
 		torrent:
 			for _, t := range torrents {
-				for _, f := range filters {
-					match, err := f(t)
-					if err != nil {
-						return err
-					}
-					if !match {
-						continue torrent
-					}
+				ok, err := filters.All(t)
+				if err != nil {
+					return err
+				}
+				if !ok {
+					continue torrent
 				}
 				// TODO: When states change, the width of lines may also
 				for i, key := range columns {
@@ -146,22 +130,17 @@ to quickly create a Cobra application.`,
 					fields[i] = v.String()
 				}
 
-				ln := strings.Join(fields, "\t") + "\t\n"
-				if _, ok := out[ln]; !ok {
-					out[ln] = struct{}{}
-					fmt.Fprint(w, ln)
-				}
+				w.WriteOnce(fields)
 			}
 
 			w.Flush()
 
 			if !watch {
 				if len(torrents) == 0 {
-					fmt.Fprintln(w, "No torrents found.")
+					w.Write([]string{"No torrents found."})
 				}
 				break
 			}
-			o.Flush()
 			time.Sleep(watchSleep)
 		}
 		return nil

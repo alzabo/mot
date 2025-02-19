@@ -90,16 +90,14 @@ to quickly create a Cobra application.`,
 		for {
 		tracker:
 			for _, t := range c.Trackers(hashes) {
-				for _, f := range filters {
-					match, err := f(t)
-					if err != nil {
-						return err
-					}
-					if !match {
-						continue tracker
-					}
-
+				ok, err := filters.All(t)
+				if err != nil {
+					return err
 				}
+				if !ok {
+					continue tracker
+				}
+
 				fields := make([]string, len(columns))
 				for i, key := range columns {
 					val, err := t.Get(key)
