@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/alzabo/mot/torrent"
@@ -51,21 +50,13 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			return err
 		}
-
-		w := new(tabwriter.Writer)
-		w.Init(os.Stdout, 1, 4, 3, ' ', 0)
-		if !noHeaders {
-			headers := make([]string, len(columns))
-			for i, key := range columns {
-				headers[i] = strings.ToUpper(key)
-			}
-			fmt.Fprint(w, strings.Join(headers, "\t")+"\t\n")
-		}
-
 		// Don't print usage for errors after flag validation
 		cmd.SilenceUsage = true
 
-		out := map[string]struct{}{}
+		w := writer(os.Stdout)
+		if !noHeaders {
+			w.WriteFunc(columns, strings.ToUpper)
+		}
 
 		c := newClient()
 
@@ -85,13 +76,7 @@ to quickly create a Cobra application.`,
 							fields[i] = val.String()
 						}
 					}
-
-					ln := strings.Join(fields, "\t") + "\t\n"
-					if _, ok := out[ln]; ok {
-						continue
-					}
-					out[ln] = struct{}{}
-					fmt.Fprint(w, ln)
+					w.WriteOnce(fields)
 				}
 			}
 			w.Flush()
