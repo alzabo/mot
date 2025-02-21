@@ -46,7 +46,7 @@ func init() {
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	getCmd.PersistentFlags().BoolVar(&noHeaders, "no-headers", false, "When using default or columnar output, don't print headers")
+	getCmd.PersistentFlags().BoolVarP(&noHeaders, "no-headers", "H", false, "When using default or columnar output, don't print headers")
 	getCmd.PersistentFlags().BoolVarP(&watch, "watch", "w", false, "After getting the object, watch for changes")
 
 	// Cobra supports local flags which will only run when this command

@@ -16,6 +16,7 @@ limitations under the License.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -54,9 +55,17 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		args, err := parseArgs(cmd, args)
+		all, _ := cmd.Flags().GetBool("all")
+		args, err := parseArgs(cmd, args, !all)
 		if err != nil {
 			return fmt.Errorf("failed to parse args: %s", err)
+		}
+		if !all && len(args) == 0 {
+			return errors.New("specify torrent hashes as args or pipe to stdin")
+		}
+		if all && len(args) > 0 {
+			fmt.Println(args)
+			return errors.New("option --all may not be combined with hashes specified as args or via stdin")
 		}
 
 		opts := []mot.QueryOption{}
@@ -167,6 +176,8 @@ func init() {
 	getTorrentCmd.Flags().StringArray("filter", nil, "Filters to apply to the torrent list")
 
 	getTorrentCmd.Flags().StringP("output", "o", "table", "Output format.")
+	getTorrentCmd.Flags().BoolP("all", "a", false, "Get all torrents")
+
 	// -o hash; print the hash only
 	// -o wide
 	// -o activity?

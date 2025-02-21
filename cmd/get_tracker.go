@@ -39,11 +39,8 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var err error
-		all, err := cmd.Flags().GetBool("all")
-		if err != nil {
-			return err
-		}
-		args, err = parseArgs(cmd, args)
+		all, _ := cmd.Flags().GetBool("all")
+		args, err = parseArgs(cmd, args, !all)
 		if err != nil {
 			return fmt.Errorf("failed to parse args: %s", err)
 		}
@@ -51,7 +48,7 @@ to quickly create a Cobra application.`,
 			return errors.New("specify torrent hashes as args or pipe to stdin")
 		}
 		if all && len(args) > 0 {
-			return errors.New("option --all may not be combined with hashes specified as args or stdin")
+			return errors.New("option --all may not be combined with hashes specified as args or via stdin")
 		}
 
 		columns, err := cmd.Flags().GetStringSlice("columns")
