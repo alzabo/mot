@@ -2,7 +2,6 @@ package mot
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"log"
@@ -10,6 +9,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -47,13 +47,14 @@ func NewClient(url string, username string, password string) (Client, error) {
 			MaxIdleConns:        10,
 			MaxIdleConnsPerHost: 10,
 			IdleConnTimeout:     30 * time.Second,
+			ReadBufferSize:      16 << 10,
 		},
 	}
 	err = client.Login(username, password)
 
 	// TODO: Magic numbers here. These limits generally work OK, but sometimes hang.
 	// Need to handle hanging requests better, actually back off and recover.
-	client.Limiter = rate.NewLimiter(rate.Limit(1500), 300)
+	client.Limiter = rate.NewLimiter(rate.Limit(2000), 1)
 
 	return client, err
 }
@@ -281,15 +282,24 @@ func (c *Client) Trackers(hashes []string) torrent.Trackers {
 
 func (c *Client) sendBatchRequests(reqs []*http.Request) []*http.Response {
 	respChan := make(chan *http.Response, len(reqs))
+	wg := sync.WaitGroup{}
+	wg.Add(len(reqs))
 	for _, req := range reqs {
 		//fmt.Println(req)
 		// Launch a goroutine for each request
 		go func(r *http.Request) {
+			defer wg.Done()
 			// TODO: Handle errors
-			resp, _ := c.sendRequest(r)
+			//fmt.Println(r.URL)
+			resp, err := c.sendRequest(r)
+			if err != nil {
+				fmt.Println(err)
+			}
 			respChan <- resp
 		}(req)
 	}
+
+	wg.Wait()
 
 	responses := make([]*http.Response, len(reqs))
 	for i := range len(reqs) {
@@ -301,11 +311,26 @@ func (c *Client) sendBatchRequests(reqs []*http.Request) []*http.Response {
 }
 
 func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
-	ctx := context.Background()
-	c.Limiter.Wait(ctx)
-	resp, err := c.HttpClient.Do(req)
-	if err != nil {
-		return nil, err
+	r := c.Limiter.Reserve()
+	time.Sleep(r.Delay())
+
+	var resp *http.Response
+	var err error
+	ch := make(chan error, 1)
+
+	go func() {
+		resp, err = c.HttpClient.Do(req)
+		ch <- err
+	}()
+
+	select {
+	case <-ch:
+		//c.Limiter.SetLimit(c.Limiter.Limit() + 100)
+		return resp, err
+	case <-time.After(500 * time.Millisecond):
+		//c.Limiter.SetLimit(c.Limiter.Limit() - 200)
+		// TODO: Log here
+		//fmt.Println("timed out", req)
+		return c.sendRequest(req)
 	}
-	return resp, nil
 }
