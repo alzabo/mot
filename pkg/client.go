@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -30,11 +31,12 @@ type Client struct {
 	HttpClient http.Client
 	BaseUrl    string
 	Limiter    *rate.Limiter
+	backoff    atomic.Int64
 }
 
-func NewClient(url string, username string, password string) (Client, error) {
+func NewClient(url string, username string, password string) (*Client, error) {
 	var err error
-	client := Client{BaseUrl: url}
+	client := &Client{BaseUrl: url}
 
 	// All users of cookiejar should import "golang.org/x/net/publicsuffix"
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
@@ -52,8 +54,11 @@ func NewClient(url string, username string, password string) (Client, error) {
 	}
 	err = client.Login(username, password)
 
-	// TODO: Magic numbers here. These limits generally work OK, but sometimes hang.
-	// Need to handle hanging requests better, actually back off and recover.
+	// TODO: Magic numbers here. These limits generally work OK, but sometimes
+	// hang. Need to handle hanging requests better, actually back off and
+	// recover. Rates as high as 3000 work when the server is lightly loaded,
+	// but when the server is performing an operation like checking a torrent,
+	// the server may become overloaded.
 	client.Limiter = rate.NewLimiter(rate.Limit(2000), 1)
 
 	return client, err
@@ -326,11 +331,16 @@ func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 	select {
 	case <-ch:
 		//c.Limiter.SetLimit(c.Limiter.Limit() + 100)
+		if c.backoff.Load() > 0 {
+			c.backoff.Add(-1)
+		}
 		return resp, err
 	case <-time.After(500 * time.Millisecond):
 		//c.Limiter.SetLimit(c.Limiter.Limit() - 200)
 		// TODO: Log here
 		//fmt.Println("timed out", req)
+		c.backoff.Add(1)
+		time.Sleep(time.Duration(c.backoff.Load() * 1_000_000))
 		return c.sendRequest(req)
 	}
 }
