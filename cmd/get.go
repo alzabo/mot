@@ -31,25 +31,19 @@ var getCmd = &cobra.Command{
 	Use:     "get",
 	GroupID: "torrent",
 	Short:   "Display one or more objects",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Long: `Prints a table of objects.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Examples:
+  # List all torrents
+  mot get torrents
+
+  # List all trackers
+  mot get trackers`,
 }
 
 func init() {
 	rootCmd.AddCommand(getCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
 	getCmd.PersistentFlags().BoolVarP(&noHeaders, "no-headers", "H", false, "When using default or columnar output, don't print headers")
 	getCmd.PersistentFlags().BoolVarP(&watch, "watch", "w", false, "After getting the object, watch for changes")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// getCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

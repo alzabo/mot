@@ -24,15 +24,18 @@ import (
 
 // pauseCmd represents the pause command
 var pauseCmd = &cobra.Command{
-	Use:     "pause",
+	Use:     "pause hash...",
 	Aliases: []string{"stop"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	GroupID: "torrent",
+	Short:   "Pause torrents",
+	Long: `Pause torrents.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Examples:
+  # Pause a torrent
+  mot pause hash
+
+  # Pause all torrents
+  mot get torrents -a -o hash | mot pause`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		args, err := parseArgs(cmd, args, true)
 		if err != nil {
@@ -49,14 +52,4 @@ to quickly create a Cobra application.`,
 
 func init() {
 	rootCmd.AddCommand(pauseCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// pauseCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// pauseCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

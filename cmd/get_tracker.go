@@ -28,15 +28,17 @@ import (
 
 // getTrackerCmd represents the tracker command
 var getTrackerCmd = &cobra.Command{
-	Use:     "tracker",
+	Use:     "tracker hash...",
 	Aliases: []string{"trackers"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short:   "Display torrent trackers",
+	Long: `Display torrent tracker information.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Examples:
+  # Display trackers for a torrent
+  mot get trackers hash
+
+  # Display trackers with NOT_WORKING status
+  mot get trackers -a --filter=status=NOT_WORKING`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var err error
 		all, _ := cmd.Flags().GetBool("all")
@@ -122,15 +124,6 @@ to quickly create a Cobra application.`,
 func init() {
 	getCmd.AddCommand(getTrackerCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// getTrackerCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// getTrackerCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	getTrackerCmd.Flags().StringSliceP("columns", "c", []string{"hash", "status", "url", "message"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Tracker{}.Keys(), ", "))
 	getTrackerCmd.Flags().StringArray("filter", []string{"status!=DISABLED"}, "Filters to apply to the torrent list")
 	getTrackerCmd.Flags().BoolP("all", "a", false, "Get all trackers for all torrents")

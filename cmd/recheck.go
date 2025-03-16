@@ -29,12 +29,11 @@ var recheckCmd = &cobra.Command{
 	Aliases: []string{"check"},
 	GroupID: "torrent",
 	Short:   "Recheck torrent contents",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Long: `Recheck torrent files.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Examples:
+  # Recheck a torrent
+  mot recheck hash`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		args, err := parseArgs(cmd, args, true)
 		if err != nil {
@@ -57,14 +56,4 @@ to quickly create a Cobra application.`,
 
 func init() {
 	rootCmd.AddCommand(recheckCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// recheckCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// recheckCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

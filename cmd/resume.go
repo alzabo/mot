@@ -24,15 +24,15 @@ import (
 
 // resumeCmd represents the resume command
 var resumeCmd = &cobra.Command{
-	Use:     "resume",
+	Use:     "resume hash...",
 	Aliases: []string{"unpause", "start"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	GroupID: "torrent",
+	Short:   "Resume torrents",
+	Long: `Resume torrents.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Examples:
+  # Resume a torrent
+  mot resume hash`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		args, err := parseArgs(cmd, args, true)
 		if err != nil {
@@ -49,14 +49,4 @@ to quickly create a Cobra application.`,
 
 func init() {
 	rootCmd.AddCommand(resumeCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// resumeCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// resumeCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

@@ -30,13 +30,12 @@ import (
 var getFilesCmd = &cobra.Command{
 	Use:     "files hash...",
 	Aliases: []string{"file"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short:   "Display torrent files",
+	Long: `Prints a table of torrent files.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Examples:
+  # Print files for a torrent
+  mot get files hash`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		args, err := parseArgs(cmd, args, true)
 		if err != nil {
@@ -104,16 +103,6 @@ to quickly create a Cobra application.`,
 
 func init() {
 	getCmd.AddCommand(getFilesCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// filesCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// filesCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
 	getFilesCmd.Flags().StringSliceP("columns", "c", []string{"hash", "size", "progress", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.File{}.Keys(), ", "))
 	getFilesCmd.Flags().StringArray("filter", nil, "Filters to apply to the torrent list")

@@ -46,14 +46,16 @@ var torrentStateFilters = []string{
 // getTorrentCmd represents the torrent command
 var getTorrentCmd = &cobra.Command{
 	Use:     "torrent [hash...]",
-	Aliases: []string{"torrents", "tor", "to"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Aliases: []string{"torrents", "tor"},
+	Short:   "Display torrent information",
+	Long: `Display torrent information.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Example:
+  # Get information for a torrent
+  mot get torrent hash
+
+  # Get information for all torrents
+  mot get torrents -a`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		all, _ := cmd.Flags().GetBool("all")
 		args, err := parseArgs(cmd, args, !all)
@@ -160,14 +162,6 @@ to quickly create a Cobra application.`,
 func init() {
 	getCmd.AddCommand(getTorrentCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// getTorrentCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
 	getTorrentCmd.Flags().String("category", "", "Select torrents with the given category")
 	getTorrentCmd.Flags().String("tag", "", "Select torrents with the given tag")
 	getTorrentCmd.Flags().String("state", "", "Select torrents in one of the states: "+strings.Join(torrentStateFilters, ", "))
