@@ -29,8 +29,8 @@ const watchSleep time.Duration = 1000
 // getCmd represents the get command
 var getCmd = &cobra.Command{
 	Use:     "get",
-	GroupID: "torrent",
-	Short:   "Display one or more objects",
+	GroupID: "basic",
+	Short:   "Display information for objects",
 	Long: `Prints a table of objects.
 
 Examples:

@@ -60,19 +60,14 @@ func init() {
 
 	rootCmd.PersistentFlags().String("url", "", "qBittorrent url")
 	viper.BindPFlag("url", rootCmd.PersistentFlags().Lookup("url"))
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-	rootCmd.PersistentFlags().StringVarP(&output, "output", "o", "", "output format")
 
+	rootCmd.PersistentFlags().StringVarP(&output, "output", "o", "", "output format")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.mot.yaml)")
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	rootCmd.AddGroup(
-		&cobra.Group{ID: "torrent", Title: "Torrent Management Commands"},
-		&cobra.Group{ID: "other", Title: "Other Commands"},
+		&cobra.Group{ID: "basic", Title: "Basic Commands:"},
+		&cobra.Group{ID: "torrent", Title: "Torrent Management Commands:"},
+		&cobra.Group{ID: "other", Title: "Other Commands:"},
 	)
 	rootCmd.SetCompletionCommandGroupID("other")
 	rootCmd.SetHelpCommandGroupID("other")

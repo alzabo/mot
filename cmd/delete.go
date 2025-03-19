@@ -22,8 +22,8 @@ import (
 // deleteCmd represents the delete command
 var deleteCmd = &cobra.Command{
 	Use:     "delete",
-	Aliases: []string{"del"},
-	GroupID: "torrent",
+	Aliases: []string{"remove", "del"},
+	GroupID: "basic",
 	Short:   "Delete objects",
 	Long: `Delete objects.
 
