@@ -6,46 +6,46 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 )
 
+// AddTorrent represents the qBittorrent Torrent add API payload.
 type AddTorrent struct {
-	URL                    *[]string `form:"urls" usage:"torrent URL" short:"U"`
-	Torrent                *[]string `form:"torrents" usage:"path to torrent file" short:"t"`
-	SavePath               *string   `form:"savepath" usage:"torrent download folder"`
-	Cookie                 *string   `form:"cookie" usage:"cookie sent to download the .torrent file when URLs are provided"`
-	Category               *string   `form:"category" usage:"category for the torrent"`
-	Tags                   *[]string `form:"tags" usage:"tags for the torrent"`
-	SkipChecking           *bool     `form:"skip_checking" usage:"skip hash checking"`
-	Paused                 *bool     `form:"paused" usage:"add torrents in the paused state"`
-	CreateRootFolder       *bool     `form:"root_folder" usage:"whether to create the root folder"`
-	Rename                 *string   `form:"rename" usage:"rename torrent to the supplied string"`
-	UploadLimit            *int64    `form:"upLimit" usage:"set torrent upload speed limit (bytes/second)"`
-	DownloadLimit          *int64    `form:"dlLimit" usage:"set torrent download speed limit (bytes/second)"`
-	RatioLimit             *float64  `form:"ratioLimit" usage:"set torrent share ratio limit"`
-	SeedingTimeLimit       *int64    `form:"seedingTimeLimit" usage:"set torrent seeding time limit (minutes)"`
-	AutoTMM                *bool     `form:"autoTMM" usage:"enable Automatic Torrent Management"`
-	SequentialDownload     *bool     `form:"sequentialDownload" usage:"enable sequential download"`
-	FirstLastPiecePriority *bool     `form:"firstLastPiecePrio" usage:"prioritize downloading first and last pieces"`
+	URL                          *[]string `param:"urls" join:"\n" usage:"torrent URL" short:"U"`
+	Torrent                      *[]string `param:"torrents" usage:"path to torrent file" short:"f"`
+	SavePath                     *string   `param:"savepath" usage:"torrent download folder"`
+	Cookie                       *string   `param:"cookie" usage:"cookie sent to download the .torrent file when URLs are provided"`
+	Category                     *string   `param:"category" usage:"category for the torrent"`
+	Tags                         *[]string `param:"tags" join:"," usage:"tags for the torrent"`
+	SkipChecking                 *bool     `param:"skip_checking" usage:"skip hash checking"`
+	Paused                       *bool     `param:"paused" usage:"add torrents in the paused state"`
+	CreateRootFolder             *bool     `param:"root_folder" usage:"whether to create the root folder"`
+	NameOverride                 *string   `param:"rename" usage:"set torrent name to the supplied string instead of the value in the torrent"`
+	UploadLimit                  *int64    `param:"upLimit" usage:"set torrent upload speed limit (bytes/second)"`
+	DownloadLimit                *int64    `param:"dlLimit" usage:"set torrent download speed limit (bytes/second)"`
+	RatioLimit                   *float64  `param:"ratioLimit" usage:"set torrent share ratio limit"`
+	SeedingTimeLimit             *int64    `param:"seedingTimeLimit" usage:"set torrent seeding time limit (minutes)"`
+	EnableAutoTMM                *bool     `param:"autoTMM" usage:"enable Automatic Torrent Management"`
+	EnableSequentialDownload     *bool     `param:"sequentialDownload" usage:"enable sequential download"`
+	EnableFirstLastPiecePriority *bool     `param:"firstLastPiecePrio" usage:"prioritize downloading first and last pieces"`
 }
 
-func (c *Client) AddTorrent(request *AddTorrent) error {
-	b := &bytes.Buffer{}
-	writer := multipart.NewWriter(b)
+func (r *AddTorrent) ParseMultiPartForm() (io.Reader, string, error) {
+	buf := &bytes.Buffer{}
+	writer := multipart.NewWriter(buf)
 
-	rv := reflect.ValueOf(*request)
-	rt := reflect.TypeOf(*request)
+	rv := reflect.ValueOf(*r)
+	rt := reflect.TypeOf(*r)
 	for i := range rt.NumField() {
 		v := rv.Field(i)
 		if v.IsNil() {
 			continue
 		}
 
-		form := rt.Field(i).Tag.Get("form")
+		form := rt.Field(i).Tag.Get("param")
 		switch v.Elem().Kind() {
 		case reflect.Bool:
 			writer.WriteField(form, fmt.Sprintf("%v", v.Elem().Bool()))
@@ -58,58 +58,59 @@ func (c *Client) AddTorrent(request *AddTorrent) error {
 		case reflect.Slice:
 			val, ok := (v.Elem().Interface()).([]string)
 			if !ok {
-				return fmt.Errorf("failed to convert value from field %s", v)
+				return nil, "", fmt.Errorf("failed to convert value from field %s", v)
 			}
+
+			join := rt.Field(i).Tag.Get("join")
 			switch rt.Field(i).Name {
+			// TODO: change Torrent to [][]byte, read in the CLI.
 			case "Torrent":
 				for _, n := range val {
 					f, err := os.Open(n)
 					if err != nil {
-						return fmt.Errorf("failed to open file %s for reading: %s", n, err)
+						return nil, "", fmt.Errorf("failed to open file %s for reading: %s", n, err)
 					}
 					defer f.Close()
 					torrent, _ := writer.CreateFormFile(form, filepath.Base(n))
 					io.Copy(torrent, f)
 				}
-			case "URL":
-				writer.WriteField(form, strings.Join(val, "\n"))
-			case "Tags":
-				writer.WriteField(form, strings.Join(val, ","))
+			default:
+				writer.WriteField(form, strings.Join(val, join))
 			}
 		default:
-			return fmt.Errorf("failed to encode field of type %s", v.Elem().Kind())
+			return nil, "", fmt.Errorf("failed to encode field of type %s", v.Elem().Kind())
 		}
 	}
-
 	writer.Close()
 
-	//fmt.Println(b.String())
+	return buf, writer.FormDataContentType(), nil
+}
 
-	p, _ := url.JoinPath(c.BaseUrl, "api/v2/torrents/add")
-	u, _ := url.Parse(p)
-	req := &http.Request{
-		URL:    u,
-		Host:   u.Host,
-		Method: "POST",
-		Header: http.Header{
-			"Content-Type": {writer.FormDataContentType()},
-		},
-		Body:          io.NopCloser(b),
-		ContentLength: int64(b.Len()),
+func (c *Client) AddTorrent(r *AddTorrent) error {
+	buf, contentType, err := r.ParseMultiPartForm()
+	if err != nil {
+		return err
 	}
-
-	//fmt.Println(req)
+	path := c.JoinURL("api/v2/torrents/add")
+	req, err := http.NewRequest("POST", path, buf)
+	if err != nil {
+		return err
+	}
+	req.Header["Content-Type"] = []string{contentType}
 
 	resp, err := c.sendRequest(req)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	return checkResponseOK(resp)
+}
 
+func checkResponseOK(resp *http.Response) error {
+	defer resp.Body.Close()
+	fmt.Println(resp.Header)
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("HTTP error from server: %s", resp.Status)
 	}
-	fmt.Println(resp)
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %s", err)

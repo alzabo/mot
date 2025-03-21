@@ -64,6 +64,11 @@ func NewClient(url string, username string, password string) (*Client, error) {
 	return client, err
 }
 
+func (c *Client) JoinURL(p string) string {
+	u, _ := url.JoinPath(c.BaseUrl, p)
+	return u
+}
+
 func (c *Client) Login(username, password string) error {
 	loginUrl, err := url.JoinPath(c.BaseUrl, login)
 	if err != nil {
