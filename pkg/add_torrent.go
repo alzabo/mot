@@ -118,19 +118,3 @@ func (c *Client) AddTorrent(r *AddTorrent) error {
 	}
 	return checkResponseOK(resp)
 }
-
-func checkResponseOK(resp *http.Response) error {
-	defer resp.Body.Close()
-	fmt.Println(resp.Header)
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("HTTP error from server: %s", resp.Status)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %s", err)
-	}
-	if string(body) != "Ok." {
-		return fmt.Errorf("unexpected response from server: %s", body)
-	}
-	return nil
-}

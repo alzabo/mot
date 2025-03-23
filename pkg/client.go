@@ -363,3 +363,26 @@ func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 		return c.sendRequest(req)
 	}
 }
+
+func checkResponseOK(resp *http.Response) error {
+	defer resp.Body.Close()
+	err := checkStatusOK(resp)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %s", err)
+	}
+	if string(body) != "Ok." {
+		return fmt.Errorf("unexpected response from server: %s", body)
+	}
+	return nil
+}
+
+func checkStatusOK(resp *http.Response) error {
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("HTTP error from server: %s", resp.Status)
+	}
+	return nil
+}

@@ -9,3 +9,5 @@ fix: addlicense
 addlicense:
 	addlicense -l apache -c "Ryan White" $(GO_FILES) $(YAML_FILES)
 
+build:
+	CGO_ENABLED=0 go build
