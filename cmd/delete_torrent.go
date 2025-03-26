@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 package cmd
 
 import (
@@ -58,7 +57,7 @@ Examples:
 func init() {
 	deleteCmd.AddCommand(deleteTorrentCmd)
 
-	deleteTorrentCmd.Flags().BoolVarP(&deleteFiles, "delete-files", "f", false, "Delete torrent data also.")
+	deleteTorrentCmd.Flags().BoolVarP(&deleteFiles, "delete-data", "f", false, "delete torrent data")
 
 	// TODO: interactive mode
 }
