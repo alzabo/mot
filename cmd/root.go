@@ -22,7 +22,7 @@ import (
 )
 
 var cfgFile string
-var output string
+var outputFormat string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -60,7 +60,7 @@ func init() {
 	rootCmd.PersistentFlags().String("url", "", "qBittorrent url")
 	viper.BindPFlag("url", rootCmd.PersistentFlags().Lookup("url"))
 
-	rootCmd.PersistentFlags().StringVarP(&output, "output", "o", "", "output format")
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "", "output format")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.mot.yaml)")
 
 	rootCmd.AddGroup(

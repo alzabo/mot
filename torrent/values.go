@@ -26,6 +26,10 @@ const (
 	TiB int64 = 2 << 39
 )
 
+type ValuesCollection interface {
+	ValuesSlice()
+}
+
 type Values interface {
 	Get(string) (Value, error)
 	Keys() []string

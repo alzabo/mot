@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 package cmd
 
 import (
@@ -21,8 +20,9 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"time"
 
+	"github.com/alzabo/mot/filter"
+	"github.com/alzabo/mot/output"
 	mot "github.com/alzabo/mot/pkg"
 	"github.com/alzabo/mot/torrent"
 	"github.com/spf13/cobra"
@@ -45,34 +45,30 @@ var torrentStateFilters = []string{
 
 // getTorrentCmd represents the torrent command
 var getTorrentCmd = &cobra.Command{
-	Use:     "torrent [hash...]",
+	Use:     "torrent [hash... | filter...]",
 	Aliases: []string{"torrents", "tor"},
 	Short:   "Display torrent information",
 	Long: `Display torrent information.
 
 Example:
   # Get information for a torrent
-  mot get torrent hash
+  mot get torrent <torrent_hash>
 
   # Get information for all torrents
   mot get torrents -a`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		all, _ := cmd.Flags().GetBool("all")
-		args, err := parseArgs(cmd, args, !all)
+		hashes, filters, err := parseMixedArgs(cmd, args, true)
 		if err != nil {
 			return fmt.Errorf("failed to parse args: %s", err)
 		}
-		if !all && len(args) == 0 {
-			return errors.New("specify torrent hashes as args or pipe to stdin")
-		}
-		if all && len(args) > 0 {
-			fmt.Println(args)
-			return errors.New("option --all may not be combined with hashes specified as args or via stdin")
+
+		if all, _ := cmd.Flags().GetBool("all"); all && len(args) > 0 {
+			return errors.New("option --all may not be combined with hashes specified as args or through stdin")
 		}
 
 		opts := []mot.QueryOption{}
 		if len(args) > 0 {
-			opts = append(opts, mot.WithHashes(args))
+			opts = append(opts, mot.WithHashes(hashes))
 		}
 
 		if cmd.Flags().Changed("category") {
@@ -102,61 +98,29 @@ Example:
 		if err != nil {
 			return fmt.Errorf("failed to parse command line filters: %s", err)
 		}
-		filters, err := parseFilters(rawFilters)
+		parsedFilters, err := filter.ParseAll(rawFilters)
 		if err != nil {
 			return fmt.Errorf("encountered error while parsing filters: %s", err)
 		}
+		filters = append(filters, parsedFilters...)
 
 		// Don't print usage for errors after flag validation
 		cmd.SilenceUsage = true
 
+		p := output.Table[torrent.Info]{
+			Writer:  output.NewTableWriter(os.Stdout),
+			Headers: !noHeaders,
+			Watch:   watch,
+			Columns: columns,
+			Filters: filters,
+		}
+
 		c := newClient()
 
-		w := writer(os.Stdout)
-
-		fields := make([]string, len(columns))
-
-		if !noHeaders {
-			// TODO: Print headers again every N lines when watching?
-			w.WriteFunc(columns, strings.ToUpper)
-		}
-
-		for {
-			torrents := c.Torrents(opts...)
-		torrent:
-			for _, t := range torrents {
-				ok, err := filters.All(t)
-				if err != nil {
-					return err
-				}
-				if !ok {
-					continue torrent
-				}
-				// TODO: When states change, the width of lines may also
-				for i, key := range columns {
-					v, err := t.Get(key)
-					if err != nil {
-						return fmt.Errorf("key %v not found in object; available keys: [%s]", key, strings.Join(t.Keys(), ","))
-					}
-					fields[i] = v.String()
-				}
-
-				w.WriteOnce(fields)
-			}
-
-			w.Flush()
-
-			if !watch {
-				if len(torrents) == 0 {
-					w.Write([]string{"No torrents found."})
-				}
-				break
-			}
-			time.Sleep(watchSleep)
-		}
-		return nil
+		return p.Print(func() ([]torrent.Info, error) {
+			return c.Torrents(opts...), nil
+		})
 	},
-	// TODO: Validation for Args: for valid hash or none
 }
 
 func init() {

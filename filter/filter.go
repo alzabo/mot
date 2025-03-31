@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package filter
 
 import (
 	"errors"
@@ -37,7 +37,7 @@ func (fs Filters) All(item torrent.Values) (bool, error) {
 	return true, nil
 }
 
-func parseFilter(expr string) (Filter, error) {
+func Parse(expr string) (Filter, error) {
 	if strings.Contains(expr, "!=") {
 		key, substr, _ := strings.Cut(expr, "!=")
 		return func(v torrent.Values) (bool, error) {
@@ -87,11 +87,11 @@ func parseFilter(expr string) (Filter, error) {
 
 }
 
-func parseFilters(exprs []string) (Filters, error) {
+func ParseAll(exprs []string) (Filters, error) {
 	filters := make(Filters, len(exprs))
 	errs := make([]error, len(exprs))
 	for i, e := range exprs {
-		filters[i], errs[i] = parseFilter(e)
+		filters[i], errs[i] = Parse(e)
 	}
 	return filters, errors.Join(errs...)
 }

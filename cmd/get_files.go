@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 package cmd
 
 import (
@@ -20,8 +19,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
+	"github.com/alzabo/mot/filter"
+	"github.com/alzabo/mot/output"
 	"github.com/alzabo/mot/torrent"
 	"github.com/spf13/cobra"
 )
@@ -54,7 +54,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to parse command line filters: %s", err)
 		}
-		filters, err := parseFilters(rawFilters)
+		filters, err := filter.ParseAll(rawFilters)
 		if err != nil {
 			return fmt.Errorf("encountered error while parsing filters: %s", err)
 		}
@@ -62,42 +62,24 @@ Examples:
 		// Don't print usage for errors after flag validation
 		cmd.SilenceUsage = true
 
-		w := writer(os.Stdout)
-		if !noHeaders {
-			w.WriteFunc(columns, strings.ToUpper)
+		p := output.Table[torrent.File]{
+			Writer:  output.NewTableWriter(os.Stdout),
+			Headers: !noHeaders,
+			Watch:   watch,
+			Columns: columns,
+			Filters: filters,
 		}
 
 		c := newClient()
-
-		for {
-			for _, h := range args {
-			file:
-				for _, f := range c.Files(h) {
-					ok, err := filters.All(f)
-					if err != nil {
-						return err
-					}
-					if !ok {
-						continue file
-					}
-
-					fields := make([]string, len(columns))
-					for i, key := range columns {
-						val, err := f.Get(key)
-						if err != nil {
-							return fmt.Errorf("key %v not found in object; available keys: [%s]", key, strings.Join(f.Keys(), ","))
-						}
-						fields[i] = val.String()
-					}
-					w.WriteOnce(fields)
-				}
+		return p.Print(func() ([]torrent.File, error) {
+			files := torrent.Files{}
+			// TODO: is it any faster to apply filters here?
+			for _, hash := range args {
+				files = append(files, c.Files(hash)...)
 			}
-			w.Flush()
-			if !watch {
-				return nil
-			}
-			time.Sleep(watchSleep)
-		}
+			return files, nil
+
+		})
 	},
 }
 

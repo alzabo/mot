@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package output
 
 import (
 	"bufio"
@@ -26,43 +26,43 @@ import (
 // TODO: The cache map can grow unbounded. Chances are it doesn't matter much in
 // practice, but interning the strings would allow the garbage collector to
 // reclaim memory. https://go.dev/blog/unique
-func writer(output io.Writer) tableWriter {
+func NewTableWriter(output io.Writer) *TableWriter {
 	bufWriter := bufio.NewWriter(output)
 	w := new(tabwriter.Writer)
 	w.Init(bufWriter, 1, 4, 3, ' ', 0)
 
-	tw := tableWriter{
+	tw := TableWriter{
 		out:        output,
 		cache:      map[string]struct{}{},
 		writer:     bufWriter,
 		lineWriter: w,
 	}
-	return tw
+	return &tw
 }
 
-type tableWriter struct {
+type TableWriter struct {
 	out        io.Writer
 	cache      map[string]struct{}
 	writer     *bufio.Writer
 	lineWriter *tabwriter.Writer
 }
 
-func (tw *tableWriter) Flush() error {
+func (tw *TableWriter) Flush() error {
 	return errors.Join(
 		tw.lineWriter.Flush(),
 		tw.writer.Flush(),
 	)
 }
 
-func (tw *tableWriter) FlushLine() error {
+func (tw *TableWriter) FlushLine() error {
 	return tw.lineWriter.Flush()
 }
 
-func (tw *tableWriter) Write(fields []string) {
+func (tw *TableWriter) Write(fields []string) {
 	fmt.Fprintln(tw.lineWriter, tw.join(fields))
 }
 
-func (tw *tableWriter) WriteOnce(fields []string) {
+func (tw *TableWriter) WriteOnce(fields []string) {
 	ln := tw.join(fields)
 	if _, ok := tw.cache[ln]; ok {
 		return
@@ -71,7 +71,7 @@ func (tw *tableWriter) WriteOnce(fields []string) {
 	fmt.Fprintln(tw.lineWriter, tw.join(fields))
 }
 
-func (tw *tableWriter) WriteFunc(fields []string, f func(string) string) {
+func (tw *TableWriter) WriteFunc(fields []string, f func(string) string) {
 	if f == nil {
 		tw.Write(fields)
 	}
@@ -82,6 +82,6 @@ func (tw *tableWriter) WriteFunc(fields []string, f func(string) string) {
 	tw.Write(items)
 }
 
-func (tw *tableWriter) join(fields []string) string {
+func (tw *TableWriter) join(fields []string) string {
 	return fmt.Sprintf("%s\t", strings.Join(fields, "\t"))
 }

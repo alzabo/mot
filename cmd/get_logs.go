@@ -18,8 +18,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
+	"github.com/alzabo/mot/filter"
+	"github.com/alzabo/mot/output"
 	mot "github.com/alzabo/mot/pkg"
 	"github.com/alzabo/mot/torrent"
 	"github.com/spf13/cobra"
@@ -27,7 +28,7 @@ import (
 
 // getLogsCmd represents the logs command
 var getLogsCmd = &cobra.Command{
-	Use:     "logs",
+	Use:     "logs [filter...]",
 	Aliases: []string{"log"},
 	Short:   "Get qBittorrent server logs",
 	Long: `Retrieve logs from the server.
@@ -36,9 +37,13 @@ Examples:
   # Get all logs
   mot get logs`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var req mot.MainLog
-		err := updateFromCmd(cmd, &req)
+		_, filters, err := parseMixedArgs(cmd, args, true)
 		if err != nil {
+			return fmt.Errorf("failed to parse args: %s", err)
+		}
+
+		var req mot.MainLog
+		if err := updateFromCmd(cmd, &req); err != nil {
 			return err
 		}
 
@@ -51,62 +56,32 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to parse command line filters: %s", err)
 		}
-		filters, err := parseFilters(rawFilters)
+		parsedFilters, err := filter.ParseAll(rawFilters)
 		if err != nil {
 			return fmt.Errorf("encountered error while parsing filters: %s", err)
 		}
+		filters = append(filters, parsedFilters...)
+
 		// Don't print usage for errors after flag validation
 		cmd.SilenceUsage = true
 
+		p := output.Table[torrent.Log]{
+			Writer:  output.NewTableWriter(os.Stdout),
+			Headers: !noHeaders,
+			Watch:   watch,
+			Columns: columns,
+			Filters: filters,
+		}
+
 		c := newClient()
 
-		w := writer(os.Stdout)
-
-		fields := make([]string, len(columns))
-
-		if !noHeaders {
-			// TODO: Print headers again every N lines when watching?
-			w.WriteFunc(columns, strings.ToUpper)
-		}
-
-		for {
+		return p.Print(func() ([]torrent.Log, error) {
 			logs, err := c.Logs(req)
 			if err != nil {
-				return err
+				return nil, err
 			}
-		log:
-			for _, t := range logs {
-				ok, err := filters.All(t)
-				if err != nil {
-					return err
-				}
-				if !ok {
-					continue log
-				}
-				// TODO: When states change, the width of lines may also
-				for i, key := range columns {
-					v, err := t.Get(key)
-					if err != nil {
-						return fmt.Errorf("key %v not found in object; available keys: [%s]", key, strings.Join(t.Keys(), ","))
-					}
-					fields[i] = v.String()
-				}
-
-				w.WriteOnce(fields)
-			}
-
-			w.Flush()
-
-			if !watch {
-				if len(logs) == 0 {
-					w.Write([]string{"No logs found."})
-				}
-				break
-			}
-			time.Sleep(watchSleep)
-		}
-
-		return nil
+			return logs, nil
+		})
 	},
 }
 

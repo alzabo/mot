@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 package cmd
 
 import (
@@ -20,15 +19,16 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
+	"github.com/alzabo/mot/filter"
+	"github.com/alzabo/mot/output"
 	"github.com/alzabo/mot/torrent"
 	"github.com/spf13/cobra"
 )
 
 // getTrackerCmd represents the tracker command
 var getTrackerCmd = &cobra.Command{
-	Use:     "tracker hash...",
+	Use:     "tracker [hash... | filter...]",
 	Aliases: []string{"trackers"},
 	Short:   "Display torrent trackers",
 	Long: `Display torrent tracker information.
@@ -38,19 +38,15 @@ Examples:
   mot get trackers hash
 
   # Display trackers with NOT_WORKING status
-  mot get trackers -a --filter=status=NOT_WORKING`,
+  mot get trackers --filter=status=NOT_WORKING`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var err error
-		all, _ := cmd.Flags().GetBool("all")
-		args, err = parseArgs(cmd, args, !all)
+		hashes, filters, err := parseMixedArgs(cmd, args, true)
 		if err != nil {
 			return fmt.Errorf("failed to parse args: %s", err)
 		}
-		if !all && len(args) == 0 {
-			return errors.New("specify torrent hashes as args or pipe to stdin")
-		}
-		if all && len(args) > 0 {
-			return errors.New("option --all may not be combined with hashes specified as args or via stdin")
+
+		if all, _ := cmd.Flags().GetBool("all"); all && len(args) > 0 {
+			return errors.New("option --all may not be combined with hashes specified as args or through stdin")
 		}
 
 		columns, err := cmd.Flags().GetStringSlice("columns")
@@ -67,57 +63,34 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to parse command line filters: %s", err)
 		}
-		filters, err := parseFilters(rawFilters)
+		parsedFilters, err := filter.ParseAll(rawFilters)
 		if err != nil {
 			return fmt.Errorf("encountered error while parsing filters: %s", err)
 		}
+		filters = append(filters, parsedFilters...)
 
 		// Don't print usage for errors after flag validation
 		cmd.SilenceUsage = true
 
-		w := writer(os.Stdout)
-		if !noHeaders {
-			w.WriteFunc(columns, strings.ToUpper)
+		p := output.Table[torrent.Tracker]{
+			Columns: columns,
+			Filters: filters,
+			Headers: !noHeaders,
+			Watch:   watch,
+			Writer:  output.NewTableWriter(os.Stdout),
+			Sleep:   watchSleep,
 		}
 
 		c := newClient()
 
-		hashes := []string{}
-		if all && len(args) == 0 {
-			for _, t := range c.Torrents() {
-				hashes = append(hashes, t.Hash)
-			}
-		} else {
-			hashes = args
-		}
-
-		for {
-		tracker:
-			for _, t := range c.Trackers(hashes) {
-				ok, err := filters.All(t)
-				if err != nil {
-					return err
+		return p.Print(func() ([]torrent.Tracker, error) {
+			if len(hashes) == 0 {
+				for _, t := range c.Torrents() {
+					hashes = append(hashes, t.Hash)
 				}
-				if !ok {
-					continue tracker
-				}
-
-				fields := make([]string, len(columns))
-				for i, key := range columns {
-					val, err := t.Get(key)
-					if err != nil {
-						return fmt.Errorf("key %v not found in object; available keys: [%s]", key, strings.Join(t.Keys(), ","))
-					}
-					fields[i] = val.String()
-				}
-				w.WriteOnce(fields)
 			}
-			w.Flush()
-			if !watch {
-				return nil
-			}
-			time.Sleep(watchSleep)
-		}
+			return c.Trackers(hashes), nil
+		})
 	},
 }
 

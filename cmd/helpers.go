@@ -20,8 +20,10 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 
+	"github.com/alzabo/mot/filter"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -37,6 +39,30 @@ func parseArgs(cmd *cobra.Command, args []string, readStdin bool) ([]string, err
 		args = strings.Fields(string(b))
 	}
 	return args, nil
+}
+
+var hashExpr *regexp.Regexp = regexp.MustCompile(`[0-9a-f]{40}`)
+
+func parseMixedArgs(cmd *cobra.Command, args []string, readStdin bool) ([]string, filter.Filters, error) {
+	args, err := parseArgs(cmd, args, readStdin)
+	if err != nil {
+		return nil, nil, err
+	}
+	hashes := []string{}
+	filters := filter.Filters{}
+	for _, arg := range args {
+		if hashExpr.MatchString(arg) {
+			hashes = append(hashes, arg)
+			continue
+		}
+
+		filter, err := filter.Parse(arg)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to parse arg as filter expression or hash: %s", arg)
+		}
+		filters = append(filters, filter)
+	}
+	return hashes, filters, nil
 }
 
 func ToKebabCase(s string) string {
