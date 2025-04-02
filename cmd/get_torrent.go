@@ -67,7 +67,7 @@ Example:
 		}
 
 		opts := []mot.QueryOption{}
-		if len(args) > 0 {
+		if len(hashes) > 0 {
 			opts = append(opts, mot.WithHashes(hashes))
 		}
 

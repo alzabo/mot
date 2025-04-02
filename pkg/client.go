@@ -41,6 +41,12 @@ const (
 	torrentHashHeader = "X-Torrent-Hash"
 )
 
+var bufPool sync.Pool = sync.Pool{
+	New: func() any {
+		return new(bytes.Buffer)
+	},
+}
+
 type Client struct {
 	HttpClient http.Client
 	BaseUrl    string
@@ -138,6 +144,7 @@ func (c *Client) Torrents(opts ...QueryOption) []torrent.Info {
 		log.Fatalf("failed to get torrent info from %s: %s", infoUrl, err)
 	}
 	defer info.Body.Close()
+
 	var buf bytes.Buffer
 	io.Copy(&buf, info.Body)
 	if err != nil {
@@ -283,8 +290,11 @@ func (c *Client) Trackers(hashes []string) torrent.Trackers {
 	for _, resp := range resps {
 		defer resp.Body.Close()
 
-		var buf bytes.Buffer
-		_, err = io.Copy(&buf, resp.Body)
+		buf := bufPool.Get().(*bytes.Buffer)
+		buf.Reset()
+		defer bufPool.Put(buf)
+
+		_, err = io.Copy(buf, resp.Body)
 
 		if err != nil {
 			log.Fatalf("failed to read body: %s", err)
