@@ -145,8 +145,9 @@ func (c *Client) Torrents(opts ...QueryOption) []torrent.Info {
 	}
 	defer info.Body.Close()
 
+	tmp := make([]byte, 4096)
 	var buf bytes.Buffer
-	io.Copy(&buf, info.Body)
+	io.CopyBuffer(&buf, info.Body, tmp)
 	if err != nil {
 		log.Fatalf("failed to read body: %s", err)
 	}

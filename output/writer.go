@@ -68,7 +68,7 @@ func (tw *TableWriter) WriteOnce(fields []string) {
 		return
 	}
 	tw.cache[ln] = struct{}{}
-	fmt.Fprintln(tw.lineWriter, tw.join(fields))
+	fmt.Fprintln(tw.lineWriter, ln)
 }
 
 func (tw *TableWriter) WriteFunc(fields []string, f func(string) string) {
@@ -83,5 +83,5 @@ func (tw *TableWriter) WriteFunc(fields []string, f func(string) string) {
 }
 
 func (tw *TableWriter) join(fields []string) string {
-	return fmt.Sprintf("%s\t", strings.Join(fields, "\t"))
+	return strings.Join(fields, "\t") + "\t"
 }

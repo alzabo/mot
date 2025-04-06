@@ -16,6 +16,7 @@ package torrent
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -54,16 +55,19 @@ func (v val) String() string {
 	if v.strFunc != nil {
 		return v.strFunc(v.value)
 	}
-	f := "%v"
-	switch v.value.(type) {
-	case int, int64:
-		f = "%d"
+	switch vv := v.value.(type) {
+	case int:
+		return strconv.Itoa(vv)
+	case int64:
+		return strconv.FormatInt(vv, 10)
 	case float64:
-		f = "%.2f"
-	case string, []byte:
-		f = "%s"
+		return strconv.FormatFloat(vv, 'f', 2, 64)
+	case string:
+		return vv
+	case []byte:
+		return string(vv)
 	}
-	return fmt.Sprintf(f, v.value)
+	return fmt.Sprintf("%v", v.value)
 }
 
 func (v val) RawString() string {
@@ -77,25 +81,30 @@ func fmtRaw(a any) string {
 func fmtPercent(a any) string {
 	switch v := a.(type) {
 	case float64:
-		return fmt.Sprintf("%.2f%%", v*100)
+		return strconv.FormatFloat(v*100, 'f', 2, 64) + "%"
 	default:
 		panic("unreachable")
 	}
+}
+
+func fmtSI(v, d int64) string {
+	r := float64(v) / float64(d)
+	return strconv.FormatFloat(r, 'f', 2, 64)
 }
 
 func fmtRate(a any) string {
 	switch v := a.(type) {
 	case int64:
 		if v < KiB {
-			return fmt.Sprintf("%d B/s", v)
+			return strconv.FormatInt(v, 10) + " B/s"
 		} else if v < MiB {
-			return fmt.Sprintf("%.2f KiB/s", float64(v)/float64(KiB))
+			return fmtSI(v, KiB) + "KiB/s"
 		} else if v < GiB {
-			return fmt.Sprintf("%.2f MiB/s", float64(v)/float64(MiB))
+			return fmtSI(v, MiB) + "MiB/s"
 		} else if v < TiB {
-			return fmt.Sprintf("%.2f GiB/s", float64(v)/float64(GiB))
+			return fmtSI(v, GiB) + "GiB/s"
 		} else {
-			return fmt.Sprintf("%.2f TiB/s", float64(v)/float64(TiB))
+			return fmtSI(v, TiB) + "TiB/s"
 		}
 	default:
 		panic("unreachable")
@@ -106,15 +115,15 @@ func fmtBytes(a any) string {
 	switch v := a.(type) {
 	case int64:
 		if v < KiB {
-			return fmt.Sprintf("%d B", v)
+			return strconv.FormatInt(v, 10) + " B"
 		} else if v < MiB {
-			return fmt.Sprintf("%.2f KiB", float64(v)/float64(KiB))
+			return fmtSI(v, KiB) + "KiB"
 		} else if v < GiB {
-			return fmt.Sprintf("%.2f MiB", float64(v)/float64(MiB))
+			return fmtSI(v, MiB) + "MiB"
 		} else if v < TiB {
-			return fmt.Sprintf("%.2f GiB", float64(v)/float64(GiB))
+			return fmtSI(v, GiB) + "GiB"
 		} else {
-			return fmt.Sprintf("%.2f TiB", float64(v)/float64(TiB))
+			return fmtSI(v, TiB) + "TiB"
 		}
 	default:
 		panic("unreachable")
@@ -152,7 +161,13 @@ var infoFmtMapping = map[string]func(any) string{
 }
 
 func (i Info) Get(key string) (Value, error) {
-	k, mod, _ := strings.Cut(key, "+")
+	var k string
+	var mod string
+	if strings.ContainsRune(key, '+') {
+		k, mod, _ = strings.Cut(key, "+")
+	} else {
+		k = key
+	}
 
 	f := infoKeyMapping[k]
 	if f == nil {
@@ -160,10 +175,10 @@ func (i Info) Get(key string) (Value, error) {
 	}
 
 	switch mod {
-	case "raw":
-		return val{f(i), fmtRaw}, nil
 	case "":
 		return val{f(i), infoFmtMapping[k]}, nil
+	case "raw":
+		return val{f(i), fmtRaw}, nil
 	default:
 		return val{}, fmt.Errorf("unknown format modifier %q specified in key %s", mod, key)
 	}
