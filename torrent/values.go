@@ -21,10 +21,19 @@ import (
 )
 
 const (
-	KiB int64 = 1024
-	MiB int64 = 2 << 19
-	GiB int64 = 2 << 29
-	TiB int64 = 2 << 39
+	KiB  int64 = 1024
+	MiB  int64 = 2 << 19
+	GiB  int64 = 2 << 29
+	TiB  int64 = 2 << 39
+	KiBF       = float64(KiB)
+	MiBF       = float64(KiB)
+	GiBF       = float64(GiB)
+	TiBF       = float64(TiB)
+)
+
+const (
+	modDefault = ""
+	modRaw     = "raw"
 )
 
 type ValuesCollection interface {
@@ -55,27 +64,32 @@ func (v val) String() string {
 	if v.strFunc != nil {
 		return v.strFunc(v.value)
 	}
-	switch vv := v.value.(type) {
-	case int:
-		return strconv.Itoa(vv)
-	case int64:
-		return strconv.FormatInt(vv, 10)
-	case float64:
-		return strconv.FormatFloat(vv, 'f', 2, 64)
-	case string:
-		return vv
-	case []byte:
-		return string(vv)
-	}
-	return fmt.Sprintf("%v", v.value)
+	return toString(v.value)
 }
 
 func (v val) RawString() string {
-	return fmt.Sprintf("%v", v.value)
+	return toString(v.value)
+}
+
+func toString(value any) string {
+	switch v := value.(type) {
+	case int:
+		return strconv.Itoa(v)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case float64:
+		return strconv.FormatFloat(v, 'f', 2, 64)
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	default:
+		return fmt.Sprintf("%v", value)
+	}
 }
 
 func fmtRaw(a any) string {
-	return fmt.Sprintf("%v", a)
+	return toString(a)
 }
 
 func fmtPercent(a any) string {
@@ -87,25 +101,31 @@ func fmtPercent(a any) string {
 	}
 }
 
-func fmtSI(v, d int64) string {
-	r := float64(v) / float64(d)
-	return strconv.FormatFloat(r, 'f', 2, 64)
+func fmtIEC(v int64) string {
+	var q float64
+	var suffix string
+	if v < KiB {
+		return strconv.FormatInt(v, 10) + " B"
+	} else if v < MiB {
+		q = float64(v) / KiBF
+		suffix = " KiB"
+	} else if v < GiB {
+		q = float64(v) / MiBF
+		suffix = " GiB"
+	} else if v < TiB {
+		q = float64(v) / GiBF
+		suffix = " GiB"
+	} else {
+		q = float64(v) / TiBF
+		suffix = " TiB"
+	}
+	return strconv.FormatFloat(q, 'f', 2, 64) + suffix
 }
 
 func fmtRate(a any) string {
 	switch v := a.(type) {
 	case int64:
-		if v < KiB {
-			return strconv.FormatInt(v, 10) + " B/s"
-		} else if v < MiB {
-			return fmtSI(v, KiB) + "KiB/s"
-		} else if v < GiB {
-			return fmtSI(v, MiB) + "MiB/s"
-		} else if v < TiB {
-			return fmtSI(v, GiB) + "GiB/s"
-		} else {
-			return fmtSI(v, TiB) + "TiB/s"
-		}
+		return fmtIEC(v) + "/s"
 	default:
 		panic("unreachable")
 	}
@@ -114,17 +134,7 @@ func fmtRate(a any) string {
 func fmtBytes(a any) string {
 	switch v := a.(type) {
 	case int64:
-		if v < KiB {
-			return strconv.FormatInt(v, 10) + " B"
-		} else if v < MiB {
-			return fmtSI(v, KiB) + "KiB"
-		} else if v < GiB {
-			return fmtSI(v, MiB) + "MiB"
-		} else if v < TiB {
-			return fmtSI(v, GiB) + "GiB"
-		} else {
-			return fmtSI(v, TiB) + "TiB"
-		}
+		return fmtIEC(v)
 	default:
 		panic("unreachable")
 	}
@@ -160,27 +170,31 @@ var infoFmtMapping = map[string]func(any) string{
 	// date_lastactive
 }
 
-func (i Info) Get(key string) (Value, error) {
-	var k string
-	var mod string
-	if strings.ContainsRune(key, '+') {
-		k, mod, _ = strings.Cut(key, "+")
-	} else {
-		k = key
+func parseKey(k string) (string, string) {
+	if !strings.ContainsRune(k, '+') {
+		return k, modDefault
 	}
+	key, mod, _ := strings.Cut(k, "+")
+	return key, mod
+}
 
-	f := infoKeyMapping[k]
+func (i Info) Get(k string) (Value, error) {
+	return get(i, k, infoKeyMapping, infoFmtMapping)
+}
+
+func get[T any](item T, k string, valueMap map[string]func(T) any, fmtMap map[string]func(any) string) (Value, error) {
+	key, mod := parseKey(k)
+	f := valueMap[key]
 	if f == nil {
-		return val{}, fmt.Errorf("key %q not found", key)
+		return nil, fmt.Errorf("key %q not found", k)
 	}
-
 	switch mod {
-	case "":
-		return val{f(i), infoFmtMapping[k]}, nil
-	case "raw":
-		return val{f(i), fmtRaw}, nil
+	case modDefault:
+		return val{f(item), fmtMap[key]}, nil
+	case modRaw:
+		return val{f(item), fmtRaw}, nil
 	default:
-		return val{}, fmt.Errorf("unknown format modifier %q specified in key %s", mod, key)
+		return nil, fmt.Errorf("unknown format modifier %q specified in key %s", mod, k)
 	}
 }
 

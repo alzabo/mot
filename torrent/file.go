@@ -14,11 +14,6 @@
 
 package torrent
 
-import (
-	"fmt"
-	"strings"
-)
-
 type Files []File
 
 type File struct {
@@ -54,19 +49,5 @@ func (f File) Keys() []string {
 }
 
 func (f File) Get(key string) (Value, error) {
-	k, mod, _ := strings.Cut(key, "+")
-
-	fn := fileKeyMapping[k]
-	if fn == nil {
-		return val{}, fmt.Errorf("key %q not found", key)
-	}
-
-	switch mod {
-	case "raw":
-		return val{fn(f), fmtRaw}, nil
-	case "":
-		return val{fn(f), fileFmtMapping[k]}, nil
-	default:
-		return val{}, fmt.Errorf("unknown format modifier %q specified in key %s", mod, key)
-	}
+	return get(f, key, fileKeyMapping, fileFmtMapping)
 }

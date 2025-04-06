@@ -288,6 +288,7 @@ func (c *Client) Trackers(hashes []string) torrent.Trackers {
 
 	items := make(torrent.Trackers, 0, len(hashes))
 	resps := c.sendBatchRequests(reqs)
+	tmp := make([]byte, 4096)
 	for _, resp := range resps {
 		defer resp.Body.Close()
 
@@ -295,7 +296,7 @@ func (c *Client) Trackers(hashes []string) torrent.Trackers {
 		buf.Reset()
 		defer bufPool.Put(buf)
 
-		_, err = io.Copy(buf, resp.Body)
+		_, err = io.CopyBuffer(buf, resp.Body, tmp)
 
 		if err != nil {
 			log.Fatalf("failed to read body: %s", err)

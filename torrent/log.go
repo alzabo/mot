@@ -14,11 +14,6 @@
 
 package torrent
 
-import (
-	"fmt"
-	"strings"
-)
-
 type Logs []Log
 
 type Log struct {
@@ -28,22 +23,8 @@ type Log struct {
 	Type      int64  `json:"type"`
 }
 
-func (l Log) Get(key string) (Value, error) {
-	k, mod, _ := strings.Cut(key, "+")
-
-	f := logKeyMapping[k]
-	if f == nil {
-		return val{}, fmt.Errorf("key %q not found", key)
-	}
-
-	switch mod {
-	case "raw":
-		return val{f(l), fmtRaw}, nil
-	case "":
-		return val{f(l), logFmtMapping[k]}, nil
-	default:
-		return val{}, fmt.Errorf("unknown format modifier %q specified in key %s", mod, key)
-	}
+func (l Log) Get(k string) (Value, error) {
+	return get(l, k, logKeyMapping, logFmtMapping)
 }
 
 func (l Log) Keys() []string {
@@ -75,8 +56,7 @@ var logFmtMapping = map[string]func(any) string{
 		if !ok {
 			return "INVALID"
 		}
-		status, ok := m[value]
-		if ok {
+		if status, ok := m[value]; ok {
 			return status
 		}
 		return "UNKNOWN"

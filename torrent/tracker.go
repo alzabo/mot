@@ -14,11 +14,6 @@
 
 package torrent
 
-import (
-	"fmt"
-	"strings"
-)
-
 type Trackers []Tracker
 
 type Tracker struct {
@@ -33,22 +28,8 @@ type Tracker struct {
 	URL           string `json:"url"`
 }
 
-func (t Tracker) Get(key string) (Value, error) {
-	k, mod, _ := strings.Cut(key, "+")
-
-	f := trackerKeyMapping[k]
-	if f == nil {
-		return val{}, fmt.Errorf("key %q not found", key)
-	}
-
-	switch mod {
-	case "raw":
-		return val{f(t), fmtRaw}, nil
-	case "":
-		return val{f(t), trackerFmtMapping[k]}, nil
-	default:
-		return val{}, fmt.Errorf("unknown format modifier %q specified in key %s", mod, key)
-	}
+func (t Tracker) Get(k string) (Value, error) {
+	return get(t, k, trackerKeyMapping, trackerFmtMapping)
 }
 
 func (t Tracker) Keys() []string {
@@ -74,7 +55,7 @@ var trackerKeyMapping = map[string]func(Tracker) any{
 
 var trackerFmtMapping = map[string]func(any) string{
 	"status": func(v any) string {
-		m := map[int64]string{
+		mapping := map[int64]string{
 			0: "DISABLED",
 			1: "NOT_CONTACTED",
 			2: "OK",
@@ -83,7 +64,7 @@ var trackerFmtMapping = map[string]func(any) string{
 		}
 		switch s := v.(type) {
 		case int64:
-			status, ok := m[s]
+			status, ok := mapping[s]
 			if ok {
 				return status
 			}
