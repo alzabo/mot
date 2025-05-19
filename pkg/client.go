@@ -69,7 +69,7 @@ func NewClient(url string, username string, password string) (*Client, error) {
 			MaxIdleConns:        10,
 			MaxIdleConnsPerHost: 10,
 			IdleConnTimeout:     30 * time.Second,
-			ReadBufferSize:      16 << 10,
+			ReadBufferSize:      32 << 10,
 		},
 	}
 	err = client.Login(username, password)
