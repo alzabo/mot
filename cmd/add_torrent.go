@@ -27,7 +27,7 @@ var torrentAddCmd = &cobra.Command{
 	Long:    `Add torrents to qBittorrent server.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var req mot.AddTorrent
-		err := updateFromCmd(cmd, &req)
+		err := mot.UpdateFromCmd(cmd, &req)
 		if err != nil {
 			return err
 		}
@@ -41,5 +41,5 @@ var torrentAddCmd = &cobra.Command{
 
 func init() {
 	addCmd.AddCommand(torrentAddCmd)
-	flagsFromStruct(torrentAddCmd, mot.AddTorrent{})
+	mot.AddFlagsForStruct(torrentAddCmd, mot.AddTorrent{})
 }

@@ -31,11 +31,13 @@ var getLogsCmd = &cobra.Command{
 	Use:     "logs [filter...]",
 	Aliases: []string{"log"},
 	Short:   "Get qBittorrent server logs",
-	Long: `Retrieve logs from the server.
-	
-Examples:
-  # Get all logs
-  mot get logs`,
+	Long:    "Retrieve logs from the server.",
+	Example: `
+# Get all logs
+mot get logs
+
+# get logs with a specific type
+mot get logs --filter=type=ERROR`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		_, filters, err := parseMixedArgs(cmd, args, true)
 		if err != nil {
@@ -43,7 +45,7 @@ Examples:
 		}
 
 		var req mot.MainLog
-		if err := updateFromCmd(cmd, &req); err != nil {
+		if err := mot.UpdateFromCmd(cmd, &req); err != nil {
 			return err
 		}
 
@@ -87,7 +89,7 @@ Examples:
 
 func init() {
 	getCmd.AddCommand(getLogsCmd)
-	flagsFromStruct(getLogsCmd, mot.MainLog{})
+	mot.AddFlagsForStruct(getLogsCmd, mot.MainLog{})
 	getLogsCmd.Flags().StringSliceP("columns", "c", []string{"id", "timestamp", "type", "message"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Log{}.Keys(), ", "))
 	getLogsCmd.Flags().StringArray("filter", nil, "Filters to apply to the torrent list")
 }

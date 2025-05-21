@@ -26,25 +26,60 @@ import (
 	"strings"
 )
 
+type TorrentFile struct {
+	Name    string
+	Content []byte
+}
+
+type TorrentFiles []TorrentFile
+
+func (f *TorrentFiles) Type() string {
+	return "torrentFiles"
+}
+
+func (f *TorrentFiles) String() string {
+	return fmt.Sprintf("%v", *f)
+}
+
+func (f *TorrentFiles) Set(value string) error {
+	fh, err := os.Open(value)
+	if err != nil {
+		return fmt.Errorf("failed to open file %s for reading: %s", value, err)
+	}
+	defer fh.Close()
+	content, err := io.ReadAll(fh)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s: %s", value, err)
+	}
+	if len(content) == 0 {
+		return fmt.Errorf("file %s is empty", value)
+	}
+	*f = append(*f, TorrentFile{
+		Name:    filepath.Base(value),
+		Content: content,
+	})
+	return nil
+}
+
 // AddTorrent represents the qBittorrent Torrent add API payload.
 type AddTorrent struct {
-	URL                          *[]string `param:"urls" join:"\n" usage:"torrent URL" short:"U"`
-	Torrent                      *[]string `param:"torrents" usage:"path to torrent file" short:"f"`
-	SavePath                     *string   `param:"savepath" usage:"torrent download folder"`
-	Cookie                       *string   `param:"cookie" usage:"cookie sent to download the .torrent file when URLs are provided"`
-	Category                     *string   `param:"category" usage:"category for the torrent"`
-	Tags                         *[]string `param:"tags" join:"," usage:"tags for the torrent"`
-	SkipChecking                 *bool     `param:"skip_checking" usage:"skip hash checking"`
-	Paused                       *bool     `param:"paused" usage:"add torrents in the paused state"`
-	CreateRootFolder             *bool     `param:"root_folder" usage:"whether to create the root folder"`
-	NameOverride                 *string   `param:"rename" usage:"set torrent name to the supplied string instead of the value in the torrent"`
-	UploadLimit                  *int64    `param:"upLimit" usage:"set torrent upload speed limit (bytes/second)"`
-	DownloadLimit                *int64    `param:"dlLimit" usage:"set torrent download speed limit (bytes/second)"`
-	RatioLimit                   *float64  `param:"ratioLimit" usage:"set torrent share ratio limit"`
-	SeedingTimeLimit             *int64    `param:"seedingTimeLimit" usage:"set torrent seeding time limit (minutes)"`
-	EnableAutoTMM                *bool     `param:"autoTMM" usage:"enable Automatic Torrent Management"`
-	EnableSequentialDownload     *bool     `param:"sequentialDownload" usage:"enable sequential download"`
-	EnableFirstLastPiecePriority *bool     `param:"firstLastPiecePrio" usage:"prioritize downloading first and last pieces"`
+	URL                          *[]string     `param:"urls" join:"\n" usage:"torrent URL" short:"U"`
+	Torrent                      *TorrentFiles `param:"torrents" usage:"path to torrent file" short:"f"`
+	SavePath                     *string       `param:"savepath" usage:"torrent download folder"`
+	Cookie                       *string       `param:"cookie" usage:"cookie sent to download the .torrent file when URLs are provided"`
+	Category                     *string       `param:"category" usage:"category for the torrent"`
+	Tags                         *[]string     `param:"tags" join:"," usage:"tags for the torrent"`
+	SkipChecking                 *bool         `param:"skip_checking" usage:"skip hash checking"`
+	Paused                       *bool         `param:"paused" usage:"add torrents in the paused state" override_flag_change_detection:"yes"`
+	CreateRootFolder             *bool         `param:"root_folder" usage:"whether to create the root folder"`
+	NameOverride                 *string       `param:"rename" usage:"set torrent name to the supplied string instead of the value in the torrent"`
+	UploadLimit                  *int64        `param:"upLimit" usage:"set torrent upload speed limit (bytes/second)"`
+	DownloadLimit                *int64        `param:"dlLimit" usage:"set torrent download speed limit (bytes/second)"`
+	RatioLimit                   *float64      `param:"ratioLimit" usage:"set torrent share ratio limit"`
+	SeedingTimeLimit             *int64        `param:"seedingTimeLimit" usage:"set torrent seeding time limit (minutes)"`
+	EnableAutoTMM                *bool         `param:"autoTMM" usage:"enable Automatic Torrent Management"`
+	EnableSequentialDownload     *bool         `param:"sequentialDownload" usage:"enable sequential download"`
+	EnableFirstLastPiecePriority *bool         `param:"firstLastPiecePrio" usage:"prioritize downloading first and last pieces"`
 }
 
 func (r *AddTorrent) ParseMultiPartForm() (io.Reader, string, error) {
@@ -59,7 +94,8 @@ func (r *AddTorrent) ParseMultiPartForm() (io.Reader, string, error) {
 			continue
 		}
 
-		form := rt.Field(i).Tag.Get("param")
+		structField := rt.Field(i)
+		form := getTag(structField, tagParam)
 		switch v.Elem().Kind() {
 		case reflect.Bool:
 			writer.WriteField(form, fmt.Sprintf("%v", v.Elem().Bool()))
@@ -70,26 +106,19 @@ func (r *AddTorrent) ParseMultiPartForm() (io.Reader, string, error) {
 		case reflect.String:
 			writer.WriteField(form, v.Elem().String())
 		case reflect.Slice:
-			val, ok := (v.Elem().Interface()).([]string)
-			if !ok {
-				return nil, "", fmt.Errorf("failed to convert value from field %s", v)
-			}
-
-			join := rt.Field(i).Tag.Get("join")
-			switch rt.Field(i).Name {
-			// TODO: change Torrent to [][]byte, read in the CLI.
-			case "Torrent":
-				for _, n := range val {
-					f, err := os.Open(n)
-					if err != nil {
-						return nil, "", fmt.Errorf("failed to open file %s for reading: %s", n, err)
-					}
-					defer f.Close()
-					torrent, _ := writer.CreateFormFile(form, filepath.Base(n))
-					io.Copy(torrent, f)
+			switch v.Elem().Type().Name() {
+			case "string":
+				value := (v.Elem().Interface()).([]string)
+				j := getTag(structField, tagJoin)
+				writer.WriteField(form, strings.Join(value, j))
+			case "TorrentFiles":
+				values := (v.Elem().Interface()).(TorrentFiles)
+				for _, value := range values {
+					t, _ := writer.CreateFormFile(form, value.Name)
+					t.Write(value.Content)
 				}
 			default:
-				writer.WriteField(form, strings.Join(val, join))
+				return nil, "", fmt.Errorf("failed to convert value from field %s", v)
 			}
 		default:
 			return nil, "", fmt.Errorf("failed to encode field of type %s", v.Elem().Kind())

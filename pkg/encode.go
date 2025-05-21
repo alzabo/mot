@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -32,32 +33,38 @@ func encode(r any) (string, error) {
 func makeValues(r any) (url.Values, error) {
 	values := url.Values{}
 	rv := reflect.ValueOf(r)
-	rt := reflect.TypeOf(r)
-	for i := range rt.NumField() {
-		v := rv.Field(i)
-		if v.IsNil() {
+	t := reflect.TypeOf(r)
+	for i := range t.NumField() {
+		value := rv.Field(i)
+		if value.IsNil() {
 			continue
 		}
+		if value.Kind() != reflect.Pointer {
+			return nil, fmt.Errorf("value %v must be a pointer. found %v", value, value.Kind())
+		}
 
-		form := rt.Field(i).Tag.Get("param")
-		switch v.Elem().Kind() {
+		field := t.Field(i)
+		form := getTag(field, tagParam)
+
+		elem := value.Elem()
+		switch elem.Kind() {
 		case reflect.Bool:
-			values[form] = []string{fmt.Sprintf("%v", v.Elem().Bool())}
+			values[form] = []string{strconv.FormatBool(elem.Bool())}
 		case reflect.Int64:
-			values[form] = []string{fmt.Sprintf("%d", v.Elem().Int())}
+			values[form] = []string{strconv.FormatInt(elem.Int(), 10)}
 		case reflect.Float64:
-			values[form] = []string{fmt.Sprintf("%.2f", v.Elem().Float())}
+			values[form] = []string{strconv.FormatFloat(elem.Float(), 'f', 2, 64)}
 		case reflect.String:
-			values[form] = []string{v.Elem().String()}
+			values[form] = []string{elem.String()}
 		case reflect.Slice:
-			val, ok := (v.Elem().Interface()).([]string)
+			val, ok := (elem.Interface()).([]string)
 			if !ok {
-				return nil, fmt.Errorf("failed to convert value from field %s", v)
+				return nil, fmt.Errorf("failed to convert value from field %s", value)
 			}
-			join := rt.Field(i).Tag.Get("join")
+			join := getTag(field, tagJoin)
 			values[form] = []string{strings.Join(val, join)}
 		default:
-			return nil, fmt.Errorf("failed to encode field of type %s", v.Elem().Kind())
+			return nil, fmt.Errorf("failed to encode field of type %s", elem.Kind())
 		}
 	}
 	return values, nil
