@@ -7,8 +7,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const overrideFlagChangeDetection string = "override_change_detection"
-
 func lookupTag[T ~string](field reflect.StructField, tag T) (string, bool) {
 	return field.Tag.Lookup(string(tag))
 }
@@ -32,8 +30,10 @@ func kebabCase(s string) string {
 	return string(c)
 }
 
-func AddFlagsForStruct(cmd *cobra.Command, s any) {
-	t := reflect.TypeOf(s)
+// AddFlagsForPayload adds a CLI flag to the provided Command for each field
+// in the request payload struct.
+func AddFlagsForPayload(cmd *cobra.Command, payload any) {
+	t := reflect.TypeOf(payload)
 	for i := range t.NumField() {
 		field := t.Field(i)
 		flagName := kebabCase(field.Name)
@@ -74,7 +74,7 @@ func AddFlagsForStruct(cmd *cobra.Command, s any) {
 		}
 
 		if _, ok := lookupTag(field, tagOverrideChangeDetection); ok {
-			cmd.Flags().SetAnnotation(flagName, overrideFlagChangeDetection, nil)
+			cmd.Flags().SetAnnotation(flagName, string(tagOverrideChangeDetection), nil)
 		}
 	}
 }
@@ -96,7 +96,7 @@ func UpdateFromCmd(cmd *cobra.Command, ptr any) error {
 		flagName := kebabCase(field.Name)
 		flag := cmd.Flag(flagName)
 
-		_, force := flag.Annotations[overrideFlagChangeDetection]
+		_, force := flag.Annotations[string(tagOverrideChangeDetection)]
 		if !flag.Changed && !force {
 			continue
 		}

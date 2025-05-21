@@ -41,5 +41,5 @@ var torrentAddCmd = &cobra.Command{
 
 func init() {
 	addCmd.AddCommand(torrentAddCmd)
-	mot.AddFlagsForStruct(torrentAddCmd, mot.AddTorrent{})
+	mot.AddFlagsForPayload(torrentAddCmd, mot.AddTorrent{})
 }

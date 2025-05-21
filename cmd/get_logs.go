@@ -89,7 +89,7 @@ mot get logs --filter=type=ERROR`,
 
 func init() {
 	getCmd.AddCommand(getLogsCmd)
-	mot.AddFlagsForStruct(getLogsCmd, mot.MainLog{})
+	mot.AddFlagsForPayload(getLogsCmd, mot.MainLog{})
 	getLogsCmd.Flags().StringSliceP("columns", "c", []string{"id", "timestamp", "type", "message"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Log{}.Keys(), ", "))
 	getLogsCmd.Flags().StringArray("filter", nil, "Filters to apply to the torrent list")
 }
