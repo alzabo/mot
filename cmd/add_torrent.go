@@ -15,6 +15,11 @@
 package cmd
 
 import (
+	"io/fs"
+	"os"
+	"slices"
+	"strings"
+
 	mot "github.com/alzabo/mot/pkg"
 	"github.com/spf13/cobra"
 )
@@ -25,10 +30,33 @@ var torrentAddCmd = &cobra.Command{
 	Aliases: []string{"torrents", "tor"},
 	Short:   "Add torrent",
 	Long:    `Add torrents to qBittorrent server.`,
+	Example: `
+# Add a torrent from a local file
+mot add torrent -f <path>
+
+# Add multiple local torrent files by piping a list of file names to stdin
+ls *.torrent | mot add torrent`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var req mot.AddTorrent
-		err := mot.UpdateFromCmd(cmd, &req)
+		urls, files, err := parseAddTorrentArgs(cmd, args, true)
 		if err != nil {
+			return err
+		}
+
+		for _, url := range urls {
+			err := cmd.Flags().Set("url", url)
+			if err != nil {
+				return err
+			}
+		}
+		for _, file := range files {
+			err := cmd.Flags().Set("torrent", file)
+			if err != nil {
+				return err
+			}
+		}
+
+		var req mot.AddTorrent
+		if err := mot.UpdateFromCmd(cmd, &req); err != nil {
 			return err
 		}
 
@@ -42,4 +70,39 @@ var torrentAddCmd = &cobra.Command{
 func init() {
 	addCmd.AddCommand(torrentAddCmd)
 	mot.AddFlagsForPayload(torrentAddCmd, mot.AddTorrent{})
+}
+
+// supportedURL matches URL formats supported by the qBittorrent add torrent API.
+// Supported: http://, https://, magnet: and bc://bt/
+func supportedURL(url string) bool {
+	proto, _, ok := strings.Cut(url, ":")
+	if !ok {
+		return false
+	}
+	validProtos := []string{"http", "https", "magnet", "bc"}
+	return slices.Contains(validProtos, proto)
+}
+
+func parseAddTorrentArgs(cmd *cobra.Command, args []string, readStdin bool) ([]string, []string, error) {
+	args, err := parseArgs(cmd, args, readStdin)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	urls := []string{}
+	files := []string{}
+	for _, i := range args {
+		if supportedURL(i) {
+			urls = append(urls, i)
+			continue
+		}
+		info, err := os.Stat(i)
+		if err != nil {
+			return nil, nil, err
+		}
+		if info.Mode().IsRegular() || info.Mode()&fs.ModeSymlink == 0 {
+			files = append(files, i)
+		}
+	}
+	return urls, files, nil
 }
