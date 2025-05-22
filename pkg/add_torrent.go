@@ -106,12 +106,12 @@ func (r *AddTorrent) ParseMultiPartForm() (io.Reader, string, error) {
 		case reflect.String:
 			writer.WriteField(form, v.Elem().String())
 		case reflect.Slice:
-			switch v.Elem().Type().Name() {
-			case "string":
+			switch v.Elem().Type() {
+			case reflect.TypeOf(([]string)(nil)):
 				value := (v.Elem().Interface()).([]string)
 				j := getTag(structField, tagJoin)
 				writer.WriteField(form, strings.Join(value, j))
-			case "TorrentFiles":
+			case reflect.TypeOf((TorrentFiles)(nil)):
 				values := (v.Elem().Interface()).(TorrentFiles)
 				for _, value := range values {
 					t, _ := writer.CreateFormFile(form, value.Name)
