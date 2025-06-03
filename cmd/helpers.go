@@ -15,11 +15,13 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
-	"io"
+	"io/fs"
 	"log"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/alzabo/mot/filter"
@@ -27,23 +29,39 @@ import (
 	"golang.org/x/term"
 )
 
-func parseArgs(cmd *cobra.Command, args []string, readStdin bool) ([]string, error) {
-	isTtty := term.IsTerminal(int(os.Stdin.Fd()))
-	if readStdin && len(args) == 0 && !isTtty || (len(args) == 1 && args[0] == "-") {
-		input := cmd.InOrStdin()
-		b, err := io.ReadAll(input)
-		if err != nil {
-			log.Fatalf("failed to read from stdin: %s", err)
+func parseArgs(cmd *cobra.Command, args []string, readStdin bool, split bool) ([]string, error) {
+	var parsed []string
+	if split {
+		for _, i := range args {
+			parsed = append(parsed, strings.Fields(i)...)
 		}
-		args = strings.Fields(string(b))
+	} else {
+		parsed = args
 	}
-	return args, nil
+
+	isTTY := term.IsTerminal(int(os.Stdin.Fd()))
+	if !readStdin || len(parsed) == 0 && isTTY || (len(parsed) == 1 && parsed[0] != "-") {
+		return parsed, nil
+	}
+
+	s := bufio.NewScanner(cmd.InOrStdin())
+	for s.Scan() {
+		if s.Err() != nil {
+			log.Fatalf("failed to read from stdin: %s", s.Err())
+		}
+		if split {
+			parsed = append(parsed, strings.Fields(s.Text())...)
+			continue
+		}
+		parsed = append(parsed, s.Text())
+	}
+	return parsed, nil
 }
 
 var hashExpr *regexp.Regexp = regexp.MustCompile(`[0-9a-f]{40}`)
 
 func parseMixedArgs(cmd *cobra.Command, args []string, readStdin bool) ([]string, filter.Filters, error) {
-	args, err := parseArgs(cmd, args, readStdin)
+	args, err := parseArgs(cmd, args, readStdin, true)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -62,4 +80,43 @@ func parseMixedArgs(cmd *cobra.Command, args []string, readStdin bool) ([]string
 		filters = append(filters, filter)
 	}
 	return hashes, filters, nil
+}
+
+// supportedURL matches URL formats supported by the qBittorrent add torrent API.
+// Supported: http://, https://, magnet: and bc://bt/
+func supportedURL(url string) bool {
+	proto, _, ok := strings.Cut(url, ":")
+	if !ok {
+		return false
+	}
+	validProtos := []string{"http", "https", "magnet", "bc"}
+	return slices.Contains(validProtos, proto)
+}
+
+func parseAddTorrentArgs(cmd *cobra.Command, args []string, readStdin bool) error {
+	parsed, err := parseArgs(cmd, args, readStdin, false)
+	if err != nil {
+		return err
+	}
+
+	for _, i := range parsed {
+		if supportedURL(i) {
+			err := cmd.Flags().Set("url", i)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		info, err := os.Stat(i)
+		if err != nil {
+			return err
+		}
+		if info.Mode().IsRegular() || info.Mode()&fs.ModeSymlink == 0 {
+			err := cmd.Flags().Set("torrent", i)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

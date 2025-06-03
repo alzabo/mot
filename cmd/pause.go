@@ -36,7 +36,7 @@ Examples:
   # Pause all torrents
   mot get torrents -a -o hash | mot pause`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		args, err := parseArgs(cmd, args, true)
+		args, err := parseArgs(cmd, args, true, true)
 		if err != nil {
 			return fmt.Errorf("failed to parse args: %s", err)
 		}

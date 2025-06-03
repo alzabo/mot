@@ -37,7 +37,7 @@ Examples:
   # Print files for a torrent
   mot get files hash`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		args, err := parseArgs(cmd, args, true)
+		args, err := parseArgs(cmd, args, true, true)
 		if err != nil {
 			return fmt.Errorf("failed to parse args: %s", err)
 		}

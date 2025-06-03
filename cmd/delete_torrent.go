@@ -38,7 +38,7 @@ Examples:
   # Delete torrent and associated files
   mot delete torrent hash --delete-files`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		args, err := parseArgs(cmd, args, true)
+		args, err := parseArgs(cmd, args, true, true)
 		if err != nil {
 			return fmt.Errorf("failed to parse args: %s", err)
 		}
