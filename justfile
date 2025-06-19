@@ -9,23 +9,37 @@ docker compose logs qbittorrent \
 | awk '/administrator password/ {i=$NF} END {print i}'
 '''
 
+
 go_files := shell('find . -name \*.go -printf "%p "')
 
 [doc("Run all tests")]
-test: goldplate check-license
+test: goldplate license-check
 
-docker-up:
-  #!/bin/env sh
-  docker compose up -d qbittorrent
-  # Wait for the generated password to be set
-  while true; do
-    docker compose logs qbittorrent | grep -q "administrator password" && break
-    sleep 0.5
-  done
-
+[doc("Stop qBittorrent test server")]
 docker-down:
   docker compose down qbittorrent
 
+[doc("Ensure qBittorrent test server is running")]
+docker-up:
+  #!/bin/env sh
+  # If the service is already running, exit early, otherwise the while loop
+  # that greps the logs for the password will never exit.
+  service_status="$(docker compose ps --services --status running qbittorrent)"
+  if test ! -z "$service_status"; then
+    exit 0
+  fi
+  # Start the service and block until the admin password is set, otherwise
+  # downstream jobs will fail to authenticate. Under some circumstances, the
+  # docker compose logs command may print old log entries from previous
+  # executions, so we explicitly select only new log entries.
+  since=$(date --iso-8601=seconds)
+  docker compose up -d qbittorrent
+  while true; do
+    docker compose logs qbittorrent --since "$since" | grep -q "administrator password" && break
+    sleep 0.5
+  done
+
+[doc("Run goldplate specs")]
 goldplate: docker-up
   #!/bin/env sh
   export MOT_PASSWORD={{shell(get_pass)}}
@@ -37,10 +51,13 @@ clean: docker-down
 build $CGO_ENABLED="0":
   go build
 
-check-license:
+[doc("Test source files for license header presence")]
+license-check:
   addlicense -check -l apache -c "Ryan White" {{go_files}}
 
-fix-license:
+[doc("Add license header to source files")]
+license-fix:
   addlicense -l apache -c "Ryan White" {{go_files}}
 
-fix: fix-license
+[doc("Run all fixes")]
+fix: license-fix
