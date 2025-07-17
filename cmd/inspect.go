@@ -16,13 +16,10 @@ limitations under the License.
 package cmd
 
 import (
-	"bytes"
-	"crypto/sha1"
 	"fmt"
-	"io"
 	"os"
 
-	"github.com/alzabo/mot/torrent/tokenizer"
+	"github.com/alzabo/mot/torrent/parser"
 	"github.com/spf13/cobra"
 )
 
@@ -46,40 +43,8 @@ to quickly create a Cobra application.`,
 		}
 		defer f.Close()
 
-		st := []tokenizer.Type{}
-		var n int
-		infoSlice := [2]int{}
-		tokens, _ := tokenizer.Tokenize(f)
-		for i, t := range tokens {
-			if t.Type == tokenizer.DictStart {
-				st = append(st, t.Type)
-				if i < 1 {
-					continue
-				}
-				if bytes.Equal(tokens[i-1].Bytes, []byte{'i', 'n', 'f', 'o'}) {
-					n = len(st)
-					fmt.Println("info start", fmt.Sprintf("%v", t), t.Pos)
-					infoSlice[0] = t.Pos
-				}
-			}
-			if t.Type == tokenizer.DictEnd {
-				if len(st) == n {
-					fmt.Println("info end", t.Pos)
-					infoSlice[1] = t.Pos
-					break
-				}
-				st = st[:len(st)-1]
-			}
-		}
-		f.Seek(0, 0)
-		b, _ := io.ReadAll(f)
-		fmt.Println("first byte:", b[0], ":", string(b[0]))
-		fmt.Println("around info:", string(b[infoSlice[0]-5:infoSlice[0]+5]))
-		fmt.Println("around info end:", string(b[infoSlice[1]-5:infoSlice[1]+5]))
-		info := b[infoSlice[0] : infoSlice[1]+1]
-		fmt.Println("first:", info[0], ":", string(info[0]), "last:", info[len(info)-1], ":", string(info[len(info)-1]))
-		hash := sha1.Sum(info)
-		fmt.Printf("%x\n", hash)
+		torrent := parser.Parse(f)
+		fmt.Println(torrent)
 		return nil
 	},
 }
