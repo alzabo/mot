@@ -18,7 +18,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/alzabo/mot/output"
+	"github.com/alzabo/mot/torrent"
 	"github.com/alzabo/mot/torrent/parser"
 	"github.com/spf13/cobra"
 )
@@ -34,31 +37,49 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return nil
+		args, err := parseArgs(cmd, args, true, false)
+		if err != nil {
+			return fmt.Errorf("failed to parse args: %s", err)
 		}
-		f, err := os.Open(args[0])
+
+		columns, err := cmd.Flags().GetStringSlice("columns")
 		if err != nil {
 			return err
 		}
-		defer f.Close()
 
-		torrent := parser.Parse(f)
-		fmt.Println(torrent)
-		return nil
+		if cmd.Flag("output").Value.String() == "hash" {
+			columns = []string{"hash"}
+			noHeaders = true
+		}
+
+		cmd.SilenceUsage = true
+
+		p := output.Table[parser.Torrent]{
+			Writer:  output.NewTableWriter(os.Stdout),
+			Headers: !noHeaders,
+			Watch:   watch,
+			Columns: columns,
+		}
+
+		return p.Print(func() ([]parser.Torrent, error) {
+			torrents := make([]parser.Torrent, len(args))
+			for i, arg := range args {
+				f, err := os.Open(arg)
+				if err != nil {
+					return nil, err
+				}
+				defer f.Close()
+
+				torrents[i] = parser.Parse(f)
+			}
+			return torrents, nil
+		})
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(inspectCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// inspectCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// inspectCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	inspectCmd.Flags().StringSliceP("columns", "c", []string{"hash", "size", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Info{}.Keys(), ", "))
+	inspectCmd.Flags().StringP("output", "o", "table", "Output format.")
 }
