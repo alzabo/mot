@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/alzabo/mot/output"
-	"github.com/alzabo/mot/torrent"
 	"github.com/alzabo/mot/torrent/parser"
 	"github.com/spf13/cobra"
 )
@@ -80,6 +79,6 @@ to quickly create a Cobra application.`,
 func init() {
 	rootCmd.AddCommand(inspectCmd)
 
-	inspectCmd.Flags().StringSliceP("columns", "c", []string{"hash", "size", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(torrent.Info{}.Keys(), ", "))
+	inspectCmd.Flags().StringSliceP("columns", "c", []string{"hash", "size", "name"}, "Columns to print in tabular output. Valid columns: "+strings.Join(parser.Torrent{}.Keys(), ", "))
 	inspectCmd.Flags().StringP("output", "o", "table", "Output format.")
 }
