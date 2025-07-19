@@ -91,7 +91,7 @@ func Parse(r io.ReadSeeker) Torrent {
 					panic("expected Integer after size key")
 				}
 				s, _ := strconv.ParseInt(string(next.Bytes), 10, 64) // TODO: Check error
-				torrent.Size = s
+				torrent.Size += s
 				i++
 			}
 		case tokenizer.DictStart:
