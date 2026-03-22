@@ -38,6 +38,10 @@ type Token struct {
 	Bytes []byte
 }
 
+type Tokenizer struct {
+	tokenizer
+}
+
 type tokenizer struct {
 	reader     *bufio.Reader
 	pos        int
@@ -107,7 +111,6 @@ func (t *tokenizer) readByte() (byte, error) {
 	return b, nil
 }
 
-// unreadByte unreads the last byte and decrements the position counter.
 func (t *tokenizer) unreadByte() {
 	t.reader.UnreadByte()
 	t.pos--
@@ -144,54 +147,70 @@ outer:
 }
 
 func Tokenize(r io.Reader) ([]*Token, error) {
-	t := tokenizer{
-		pos:        -1,
-		reader:     bufio.NewReader(r),
-		tokens:     []*Token{},
-		tokenStack: []*Token{},
-	}
-
+	t := New(r)
 	for {
-		b, err := t.readByte()
-		if err != nil {
+		_, err := t.Next()
+		if err == io.EOF {
 			break
 		}
-		switch b {
-		case 'd':
-			t.emit(&Token{
-				Pos:  t.pos,
-				Type: DictStart,
-			})
-		case 'l':
-			t.emit(&Token{
-				Pos:  t.pos,
-				Type: ListStart,
-			})
-		case 'i':
-			t.emitInt()
-		case 'e':
-			tok := &Token{
-				Pos: t.pos,
-			}
-			prev := t.stackPop()
-			switch prev.Type {
-			case DictStart:
-				tok.Type = DictEnd
-			case ListStart:
-				tok.Type = ListEnd
-			default:
-				panic("invalid stack")
-			}
-			t.emit(tok)
-		default:
-			if b >= '0' && b <= '9' {
-				// emitString has to consume the full string identifier, so the
-				// last read byte must be unread to allow the string to be
-				// parsed.
-				t.unreadByte()
-				t.emitString()
-			}
+		if err != nil {
+			return nil, err
 		}
 	}
 	return t.tokens, nil
+}
+
+func New(r io.Reader) *Tokenizer {
+	return &Tokenizer{
+		tokenizer: tokenizer{
+			pos:        -1,
+			reader:     bufio.NewReader(r),
+			tokens:     []*Token{},
+			tokenStack: []*Token{},
+		},
+	}
+}
+
+func (t *Tokenizer) Next() (*Token, error) {
+	b, err := t.readByte()
+	if err != nil {
+		if err == io.EOF && len(t.tokens) == 0 {
+			return nil, io.EOF
+		}
+		return nil, io.EOF
+	}
+	switch b {
+	case 'd':
+		t.emit(&Token{
+			Pos:  t.pos,
+			Type: DictStart,
+		})
+	case 'l':
+		t.emit(&Token{
+			Pos:  t.pos,
+			Type: ListStart,
+		})
+	case 'i':
+		t.emitInt()
+	case 'e':
+		tok := &Token{
+			Pos: t.pos,
+		}
+		prev := t.stackPop()
+		switch prev.Type {
+		case DictStart:
+			tok.Type = DictEnd
+		case ListStart:
+			tok.Type = ListEnd
+		default:
+			panic("invalid stack")
+		}
+		t.emit(tok)
+	default:
+		if b >= '0' && b <= '9' {
+			t.unreadByte()
+			t.emitString()
+		}
+	}
+	return t.tokens[len(t.tokens)-1], nil
 }

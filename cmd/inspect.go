@@ -61,15 +61,19 @@ to quickly create a Cobra application.`,
 		}
 
 		return p.Print(func() ([]parser.Torrent, error) {
-			torrents := make([]parser.Torrent, len(args))
-			for i, arg := range args {
+			torrents := make([]parser.Torrent, 0, len(args))
+			for _, arg := range args {
 				f, err := os.Open(arg)
 				if err != nil {
 					return nil, err
 				}
 				defer f.Close()
 
-				torrents[i] = parser.Parse(f)
+				torrent, err := parser.Parse(f)
+				if err != nil {
+					return nil, fmt.Errorf("parsing %s: %w", arg, err)
+				}
+				torrents = append(torrents, torrent)
 			}
 			return torrents, nil
 		})
