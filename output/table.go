@@ -37,7 +37,6 @@ func (t Table[T]) Print(getter func() ([]T, error)) error {
 	fields := make([]string, len(t.Columns))
 
 	if t.Headers {
-		// TODO: Print headers again every N lines when watching?
 		t.Writer.WriteFunc(t.Columns, strings.ToUpper)
 	}
 

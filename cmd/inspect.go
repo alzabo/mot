@@ -17,30 +17,34 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/alzabo/mot/output"
 	"github.com/alzabo/mot/torrent/parser"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
-// inspectCmd represents the inspect command
 var inspectCmd = &cobra.Command{
-	Use:   "inspect",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Use:   "inspect [file...]",
+	Short: "Display torrent file information",
+	Long: `Display information about one or more .torrent files.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Examples:
+  # Inspect a single torrent file
+  mot inspect file.torrent
+
+  # Inspect multiple files
+  mot inspect file1.torrent file2.torrent
+
+  # Pipe multiple torrents from stdin
+  cat file1.torrent file2.torrent | mot inspect
+
+  # Or with process substitution
+  mot inspect <(cat file1.torrent file2.torrent)`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		args, err := parseArgs(cmd, args, true, false)
-		if err != nil {
-			return fmt.Errorf("failed to parse args: %s", err)
-		}
-
 		columns, err := cmd.Flags().GetStringSlice("columns")
 		if err != nil {
 			return err
@@ -53,6 +57,31 @@ to quickly create a Cobra application.`,
 
 		cmd.SilenceUsage = true
 
+		isTTY := term.IsTerminal(int(os.Stdin.Fd()))
+		useStdin := !isTTY
+
+		var torrents []parser.Torrent
+		if useStdin && len(args) == 0 {
+			torrents, err = parseStdin(cmd.InOrStdin())
+			if err != nil {
+				return err
+			}
+		} else {
+			args, err := parseArgs(cmd, args, true, false)
+			if err != nil {
+				return err
+			}
+
+			torrents, err = parseFiles(args)
+			if err != nil {
+				return err
+			}
+		}
+
+		if len(torrents) == 0 {
+			return nil
+		}
+
 		p := output.Table[parser.Torrent]{
 			Writer:  output.NewTableWriter(os.Stdout),
 			Headers: !noHeaders,
@@ -61,23 +90,39 @@ to quickly create a Cobra application.`,
 		}
 
 		return p.Print(func() ([]parser.Torrent, error) {
-			torrents := make([]parser.Torrent, 0, len(args))
-			for _, arg := range args {
-				f, err := os.Open(arg)
-				if err != nil {
-					return nil, err
-				}
-				defer f.Close()
-
-				torrent, err := parser.Parse(f)
-				if err != nil {
-					return nil, fmt.Errorf("parsing %s: %w", arg, err)
-				}
-				torrents = append(torrents, torrent)
-			}
 			return torrents, nil
 		})
 	},
+}
+
+func parseStdin(r io.Reader) ([]parser.Torrent, error) {
+	var torrents []parser.Torrent
+	err := parser.ParseStream(r, func(t parser.Torrent) {
+		fmt.Printf("DEBUG: got torrent: Name=%q Size=%d Hash=%s\n", t.Name, t.Size, t.Hash)
+		torrents = append(torrents, t)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("parsing stdin: %w", err)
+	}
+	return torrents, nil
+}
+
+func parseFiles(paths []string) ([]parser.Torrent, error) {
+	torrents := make([]parser.Torrent, 0, len(paths))
+	for _, path := range paths {
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+
+		torrent, err := parser.Parse(f)
+		if err != nil {
+			return nil, fmt.Errorf("parsing %s: %w", path, err)
+		}
+		torrents = append(torrents, torrent)
+	}
+	return torrents, nil
 }
 
 func init() {

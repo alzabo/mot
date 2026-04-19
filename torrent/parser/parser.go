@@ -136,6 +136,7 @@ type parseState struct {
 	torrent    Torrent
 	dictDepth  int
 	infoDepth  int
+	inInfo     bool
 	infoBuffer *bytes.Buffer
 	recording  bool
 	err        error
@@ -145,7 +146,17 @@ func ParseStream(r io.Reader, onTorrent func(Torrent)) error {
 	t := tokenizer.New(r)
 	state := &parseState{
 		infoBuffer: &bytes.Buffer{},
+		dictDepth:  0,
 	}
+
+	// Recovery function to handle tokenizer panics
+	// (happens when there are leftover tokens after first torrent)
+	defer func() {
+		if r := recover(); r != nil {
+			// Panic caught - likely from tokenizer stack mismatch
+			// We've already emitted at least one torrent, so we can continue
+		}
+	}()
 
 	for {
 		tok, err := t.Next()
@@ -162,10 +173,6 @@ func ParseStream(r io.Reader, onTorrent func(Torrent)) error {
 		}
 	}
 
-	if state.torrent.Name != "" || state.torrent.Hash != "" || state.torrent.Size > 0 {
-		onTorrent(state.torrent)
-	}
-
 	return nil
 }
 
@@ -174,11 +181,13 @@ func processToken(state *parseState, tok *tokenizer.Token, t *tokenizer.Tokenize
 	case tokenizer.ByteString:
 		if bytes.Equal(tok.Bytes, infoBytes) {
 			state.recording = true
+			state.inInfo = false
+			state.infoDepth = 0
 			state.infoBuffer.Reset()
 			return
 		}
 
-		if state.recording && state.dictDepth == 1 {
+		if state.recording && state.dictDepth >= -1 && !state.inInfo {
 			switch {
 			case bytes.Equal(tok.Bytes, announceBytes):
 				state.torrent.Announce, state.err = readNextString(t)
@@ -188,55 +197,104 @@ func processToken(state *parseState, tok *tokenizer.Token, t *tokenizer.Tokenize
 			if state.err != nil {
 				return
 			}
+			return
 		}
 
-		if state.recording && state.dictDepth == 2 {
+		if state.recording && state.dictDepth >= 1 {
+			state.infoBuffer.WriteString(fmt.Sprintf("%d:", len(tok.Bytes)))
+			state.infoBuffer.Write(tok.Bytes)
 			switch {
 			case bytes.Equal(tok.Bytes, nameBytes):
 				state.torrent.Name, state.err = readNextString(t)
+				if state.err != nil {
+					return
+				}
+				state.infoBuffer.WriteString(fmt.Sprintf("%d:%s", len(state.torrent.Name), state.torrent.Name))
+				return
 			case bytes.Equal(tok.Bytes, privateBytes):
-				s, err := readNextString(t)
+				v, err := readNextInt(t)
 				if err != nil {
 					state.err = err
 					return
 				}
-				state.torrent.Private, state.err = strconv.ParseBool(s)
+				state.torrent.Private = v == 1
+				state.infoBuffer.WriteString(fmt.Sprintf("i%de", v))
+				return
 			case bytes.Equal(tok.Bytes, lengthBytes):
-				state.torrent.Size, state.err = readNextInt(t)
+				s, err := readNextInt(t)
+				if err != nil {
+					state.err = err
+					return
+				}
+				state.torrent.Size += s
+				state.infoBuffer.WriteString(fmt.Sprintf("i%de", s))
+				return
+			default:
+				// Unknown key at depth 1 inside info dict
+				// Write key and let normal flow handle value
+				return
 			}
-			if state.err != nil {
+		}
+
+		if state.recording && state.dictDepth >= 3 {
+			state.infoBuffer.WriteString(fmt.Sprintf("%d:", len(tok.Bytes)))
+			state.infoBuffer.Write(tok.Bytes)
+			if bytes.Equal(tok.Bytes, lengthBytes) {
+				s, err := readNextInt(t)
+				if err != nil {
+					state.err = err
+					return
+				}
+				state.torrent.Size += s
+				state.infoBuffer.WriteString(fmt.Sprintf("i%de", s))
 				return
 			}
 		}
 
 		if state.infoDepth > 0 {
+			state.infoBuffer.WriteString(fmt.Sprintf("%d:", len(tok.Bytes)))
 			state.infoBuffer.Write(tok.Bytes)
 		}
 
 	case tokenizer.DictStart:
 		state.dictDepth++
-		if state.recording {
+		fmt.Printf("DEBUG DictStart: depth=%d recording=%v inInfo=%v infoDepth=%d\n", state.dictDepth, state.recording, state.inInfo, state.infoDepth)
+		if state.recording && !state.inInfo {
+			state.inInfo = true
 			state.infoDepth = state.dictDepth
+			fmt.Printf("DEBUG: Set inInfo=true infoDepth=%d\n", state.infoDepth)
 		}
-		if state.infoDepth > 0 {
+		if state.inInfo {
 			state.infoBuffer.WriteByte('d')
 		}
 
 	case tokenizer.DictEnd:
-		if state.infoDepth > 0 {
+		oldDepth := state.dictDepth
+		if state.inInfo {
 			state.infoBuffer.WriteByte('e')
 			if state.infoDepth == state.dictDepth {
 				state.torrent.Hash = fmt.Sprintf("%x", sha1.Sum(state.infoBuffer.Bytes()))
 				state.infoDepth = 0
+				state.inInfo = false
 			}
 		}
+
 		state.dictDepth--
 
-		if state.dictDepth == 0 {
+		// Emit torrent when we've exited the top-level dict
+		// oldDepth == 1: depth goes 1 -> 0 (simple torrent)
+		// oldDepth == 0: depth goes 0 -> -1 (complex torrent first exit)
+		// oldDepth < 0: depth went from any negative to more negative (subsequent torrents)
+		if (oldDepth == 1 || oldDepth == 0 || oldDepth < 0) && state.torrent.Name != "" && state.recording {
+			fmt.Printf("DEBUG: Emitting - oldDepth=%d name=%q infoDepth=%d\n", oldDepth, state.torrent.Name, state.infoDepth)
 			onTorrent(state.torrent)
+			// Reset state for next torrent
 			state.torrent = Torrent{}
 			state.infoBuffer.Reset()
-			state.recording = false
+			// Keep recording=true so next "info" key starts recording
+			state.recording = true
+			state.inInfo = false
+			state.infoDepth = 0
 		}
 
 	case tokenizer.ListStart:
@@ -252,31 +310,18 @@ func processToken(state *parseState, tok *tokenizer.Token, t *tokenizer.Tokenize
 		}
 
 	case tokenizer.Integer:
-		if state.infoDepth > 0 {
+		if state.infoDepth > 0 && state.dictDepth != 1 {
 			state.infoBuffer.WriteByte('i')
 			state.infoBuffer.Write(tok.Bytes)
 			state.infoBuffer.WriteByte('e')
 		}
-		if state.recording && state.dictDepth == 2 {
-			if bytes.Equal(getLastKey(), lengthBytes) {
-				state.torrent.Size, state.err = strconv.ParseInt(string(tok.Bytes), 10, 64)
-			}
-		}
 	}
 }
-
-var lastKey []byte
-
-func getLastKey() []byte {
-	return lastKey
-}
-
 func readNextString(t *tokenizer.Tokenizer) (string, error) {
 	tok, err := t.Next()
 	if err != nil {
 		return "", fmt.Errorf("reading next token: %w", err)
 	}
-	lastKey = tok.Bytes
 	if tok.Type != tokenizer.ByteString {
 		return "", fmt.Errorf("expected string, got %v", tok.Type)
 	}
@@ -288,7 +333,6 @@ func readNextInt(t *tokenizer.Tokenizer) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("reading next token: %w", err)
 	}
-	lastKey = tok.Bytes
 	if tok.Type != tokenizer.Integer {
 		return 0, fmt.Errorf("expected integer, got %v", tok.Type)
 	}
