@@ -26,7 +26,7 @@ const (
 	GiB  int64 = 2 << 29
 	TiB  int64 = 2 << 39
 	KiBF       = float64(KiB)
-	MiBF       = float64(KiB)
+	MiBF       = float64(MiB)
 	GiBF       = float64(GiB)
 	TiBF       = float64(TiB)
 )
@@ -153,7 +153,7 @@ var infoKeyMapping = map[string]func(Info) any{
 	"progress":   func(i Info) any { return i.Progress },
 	"ratio":      func(i Info) any { return i.Ratio },
 	"downloaded": func(i Info) any { return i.Downloaded },
-	"uploaded":   func(i Info) any { return i.Downloaded },
+	"uploaded":   func(i Info) any { return i.Uploaded },
 	"added":      func(i Info) any { return i.AddedOn },
 	// date_added
 	// date_lastactive
