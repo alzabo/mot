@@ -16,6 +16,7 @@ package mot
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -39,6 +40,8 @@ const (
 	login             = "/api/v2/auth/login"
 	torrentInfo       = "/api/v2/torrents/info"
 	torrentHashHeader = "X-Torrent-Hash"
+	requestTimeout    = 30 * time.Second
+	attemptTimeout    = 500 * time.Millisecond
 )
 
 var bufPool sync.Pool = sync.Pool{
@@ -64,7 +67,8 @@ func NewClient(url string, username string, password string) (*Client, error) {
 		return client, fmt.Errorf("failed to initialize cookiejar: %s", err)
 	}
 	client.HttpClient = http.Client{
-		Jar: jar,
+		Jar:     jar,
+		Timeout: requestTimeout,
 		Transport: &http.Transport{
 			MaxIdleConns:        10,
 			MaxIdleConnsPerHost: 10,
@@ -347,33 +351,68 @@ func (c *Client) sendBatchRequests(reqs []*http.Request) []*http.Response {
 }
 
 func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
-	r := c.Limiter.Reserve()
-	time.Sleep(r.Delay())
+	const maxRetries = 5
 
-	var resp *http.Response
-	var err error
-	ch := make(chan error, 1)
-
-	go func() {
-		resp, err = c.HttpClient.Do(req)
-		ch <- err
-	}()
-
-	select {
-	case <-ch:
-		//c.Limiter.SetLimit(c.Limiter.Limit() + 100)
-		if c.backoff.Load() > 0 {
-			c.backoff.Add(-1)
+	var bodyBytes []byte
+	if req.Body != nil {
+		var err error
+		if bodyBytes, err = io.ReadAll(req.Body); err != nil {
+			return nil, err
 		}
-		return resp, err
-	case <-time.After(500 * time.Millisecond):
-		//c.Limiter.SetLimit(c.Limiter.Limit() - 200)
-		// TODO: Log here
-		//fmt.Println("timed out", req)
+		req.Body.Close()
+	}
+
+	type result struct {
+		resp *http.Response
+		err  error
+	}
+
+	for range maxRetries {
+		if bodyBytes != nil {
+			req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			req.ContentLength = int64(len(bodyBytes))
+		}
+
+		r := c.Limiter.Reserve()
+		time.Sleep(r.Delay())
+
+		ctx, cancel := context.WithCancel(req.Context())
+		ch := make(chan result, 1)
+		go func() {
+			resp, err := c.HttpClient.Do(req.WithContext(ctx))
+			ch <- result{resp, err}
+		}()
+
+		select {
+		case res := <-ch:
+			if res.err == nil {
+				if c.backoff.Load() > 0 {
+					c.backoff.Add(-1)
+				}
+				res.resp.Body = &cancelOnClose{ReadCloser: res.resp.Body, cancel: cancel}
+				return res.resp, nil
+			}
+			cancel()
+		case <-time.After(attemptTimeout):
+			cancel()
+			<-ch
+		}
+
 		c.backoff.Add(1)
 		time.Sleep(time.Duration(c.backoff.Load() * 1_000_000))
-		return c.sendRequest(req)
 	}
+	return nil, fmt.Errorf("request failed after %d attempts", maxRetries)
+}
+
+type cancelOnClose struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (c *cancelOnClose) Close() error {
+	err := c.ReadCloser.Close()
+	c.cancel()
+	return err
 }
 
 func checkResponseOK(resp *http.Response) error {
