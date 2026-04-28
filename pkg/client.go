@@ -341,9 +341,11 @@ func (c *Client) sendBatchRequests(reqs []*http.Request) []*http.Response {
 
 	wg.Wait()
 
-	responses := make([]*http.Response, len(reqs))
-	for i := range len(reqs) {
-		responses[i] = <-respChan
+	responses := make([]*http.Response, 0, len(reqs))
+	for range len(reqs) {
+		if resp := <-respChan; resp != nil {
+			responses = append(responses, resp)
+		}
 	}
 
 	close(respChan)
